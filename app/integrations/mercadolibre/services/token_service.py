@@ -7,7 +7,7 @@ def verificar_meli():
     cursor.execute("SELECT user_id, access_token, refresh_token, app_id, secret_key FROM meli_access LIMIT 1")
     row = cursor.fetchone()
     cursor.close()
-    conn.close()
+    
 
     if not row:
         return None, None, "No hay credenciales de Mercado Libre en la base de datos."
@@ -50,6 +50,6 @@ def verificar_meli():
     """, (new_access_token, new_refresh_token, user_id))
     conn.commit()
     cursor.close()
-    conn.close()
+    
 
     return new_access_token, user_id, None

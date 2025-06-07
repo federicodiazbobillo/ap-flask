@@ -1,6 +1,7 @@
 import requests
 from flask import Blueprint, redirect, request
 from app.db import get_conn
+from flask import jsonify
 
 meli_controller = Blueprint('meli_controller', __name__)
 
@@ -76,7 +77,7 @@ def callback_meli():
     """, (user_id, access_token, refresh_token, app_id, secret_key))
     conn.commit()
     cursor.close()
-    conn.close()
+    
 
     return "Conexión con Mercado Libre realizada correctamente."
 
@@ -85,9 +86,9 @@ def obtener_token_meli():
     try:
         token, user_id, error = verificar_meli()
         if error:
-            return {"error": error}, 200
-        return {"access_token": token, "user_id": user_id}, 200
+            return jsonify({"error": error})
+        return jsonify({"access_token": token, "user_id": user_id})
     except Exception as e:
         import traceback
-        print("❌ ERROR EN /meli/token:", traceback.format_exc())
-        return {"error": f"Excepción inesperada: {str(e)}"}, 500
+        print("❌ Error en /meli/token:\n", traceback.format_exc())
+        return jsonify({"error": f"Excepción inesperada: {str(e)}"}), 500
