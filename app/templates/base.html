@@ -60,6 +60,13 @@
             <!-- Topbar -->
             <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
                 <ul class="navbar-nav ml-auto">
+                    <li class="nav-item mt-2">
+                        {% if db_connected %}
+                            <span class="badge badge-success">Base conectada</span>
+                        {% else %}
+                            <span class="badge badge-danger">Sin conexión a DB</span>
+                        {% endif %}
+                    </li>
                     <li class="nav-item">
                         <span class="nav-link text-gray-600 small">Bienvenido, {{ session['user'] }}</span>
                     </li>
