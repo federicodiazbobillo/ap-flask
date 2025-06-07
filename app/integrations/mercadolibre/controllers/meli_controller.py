@@ -4,9 +4,9 @@ from app.db import get_conn
 
 meli_controller = Blueprint('meli_controller', __name__)
 
-from app.integrations.mercadolibre.context import init_meli_context
+
 from app.integrations.mercadolibre.services.token_service import verificar_meli
-init_meli_context(meli_controller)
+
 
 def obtener_credenciales_meli():
     conn = get_conn()
