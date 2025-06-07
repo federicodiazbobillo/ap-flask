@@ -1,7 +1,6 @@
-from flask import Blueprint, render_template, request, redirect, url_for, session, flash
+from flask import render_template, request, redirect, url_for, session, flash
 from app.models.users_model import validate_login
-
-auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
+from app.controllers.auth import auth_bp  # ✅ Importamos el blueprint ya creado
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
@@ -15,7 +14,7 @@ def login():
         else:
             flash("Credenciales inválidas")
 
-    return render_template('auth/login.html')
+    return render_template('auth/login.html')  # ✅ Verificá que esta ruta exista
 
 @auth_bp.route('/logout')
 def logout():
