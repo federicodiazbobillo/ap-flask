@@ -1,12 +1,12 @@
 import os
 from flask import Flask
-from flask_mysqldb import MySQL
 from app.config import Config
 from app.db import get_conn  # ACCESO ÚNICO
 from app.integrations.mercadolibre.verificar_token import verificar_meli
 from app.utils.blueprint_loader import register_blueprints
+from app.extensions import mysql
 
-mysql = MySQL()
+
 
 def create_app():
     app = Flask(__name__, static_folder='static', template_folder='templates')
