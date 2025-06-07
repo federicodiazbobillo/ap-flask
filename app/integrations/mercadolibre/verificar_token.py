@@ -1,13 +1,14 @@
-from app.extensions import mysql
 from flask import current_app
 import requests
+from app.db import get_conn  # Este es tu acceso único permitido a MySQL
 
 def verificar_meli():
     try:
-        cursor = mysql.connection.cursor()
+        conn = get_conn()
+        cursor = conn.cursor()
         cursor.execute("SELECT access_token, user_id FROM meli_access LIMIT 1")
         result = cursor.fetchone()
-        
+
         if not result or not result[0]:
             current_app.logger.warning("No se encontró un access_token válido en la base de datos.")
             return False
