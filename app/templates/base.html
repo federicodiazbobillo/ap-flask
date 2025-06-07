@@ -71,24 +71,16 @@
                         </span>
                     </li>
 
-                    <!-- Token Mercado Libre -->
+                    <!-- Token Mercado Libre (dinámico) -->
                     <li class="nav-item">
-                        <span class="nav-link {% if meli_token_valido %}text-success{% else %}text-danger{% endif %}">
-                            {% if meli_token_valido %}
-                                ✅ Token Mercado Libre válido
-                            {% else %}
-                                ❌ Token inválido
-                            {% endif %}
+                        <span id="token-status" class="nav-link text-muted">
+                            ⏳ Verificando token...
                         </span>
                     </li>
 
-                    <!-- Botón para ver token o error -->
+                    <!-- Botón para ver token -->
                     <li class="nav-item">
-                        {% if meli_token_valido %}
-                            <a class="nav-link" href="#" onclick="mostrarToken()">🔍 Ver token</a>
-                        {% else %}
-                            <a class="nav-link" href="#" onclick="mostrarError()">⚠️ Ver error</a>
-                        {% endif %}
+                        <a class="nav-link" href="#" onclick="mostrarToken()">🔍 Ver token</a>
                     </li>
 
                     <!-- Usuario -->
@@ -134,21 +126,32 @@
             });
     }
 
-    function mostrarError() {
+    document.addEventListener('DOMContentLoaded', () => {
         fetch('/meli/token')
             .then(response => response.json())
             .then(data => {
-                if (data.error) {
-                    alert("Error:\n" + JSON.stringify(data.error, null, 2));
+                const el = document.getElementById('token-status');
+                if (!el) return;
+
+                if (data.access_token) {
+                    el.textContent = '✅ Token Mercado Libre válido';
+                    el.classList.remove('text-danger');
+                    el.classList.add('text-success');
                 } else {
-                    alert("No se pudo obtener el detalle del error.");
+                    el.textContent = '❌ Token inválido';
+                    el.classList.remove('text-success');
+                    el.classList.add('text-danger');
                 }
             })
             .catch(error => {
-                alert("Error al obtener el error del token.");
+                const el = document.getElementById('token-status');
+                if (el) {
+                    el.textContent = '⚠️ Error al verificar token';
+                    el.classList.add('text-danger');
+                }
                 console.error(error);
             });
-    }
+    });
 </script>
 
 </body>
