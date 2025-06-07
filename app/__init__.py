@@ -5,7 +5,8 @@ from app.config import Config
 mysql = MySQL()
 
 def create_app():
-    app = Flask(__name__)
+    # Asegura que Flask encuentre correctamente static/ y templates/
+    app = Flask(__name__, static_folder='static', template_folder='templates')
     app.config.from_object(Config)
 
     mysql.init_app(app)
