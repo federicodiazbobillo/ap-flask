@@ -3,9 +3,8 @@ from app.db import get_conn
 
 def verificar_meli():
     conn = get_conn()
-    cursor = conn.cursor(buffered=True)
-    columns = [col[0] for col in cursor.description]
-    cursor.execute("SELECT * FROM meli_access LIMIT 1")
+    cursor = conn.cursor()
+    cursor.execute("SELECT user_id, access_token, refresh_token, app_id, secret_key FROM meli_access LIMIT 1")
     row = cursor.fetchone()
     cursor.close()
     conn.close()
@@ -13,11 +12,7 @@ def verificar_meli():
     if not row:
         return None, None, "No hay credenciales de Mercado Libre en la base de datos."
 
-    access_token = row['access_token']
-    refresh_token = row['refresh_token']
-    app_id = row['app_id']
-    secret_key = row['secret_key']
-    user_id = row['user_id']
+    user_id, access_token, refresh_token, app_id, secret_key = row
 
     # Verificar si el token aún es válido
     r = requests.get("https://api.mercadolibre.com/users/me", headers={
@@ -45,6 +40,7 @@ def verificar_meli():
     new_access_token = data['access_token']
     new_refresh_token = data.get('refresh_token')
 
+    # Guardar nuevo token
     conn = get_conn()
     cursor = conn.cursor()
     cursor.execute("""
