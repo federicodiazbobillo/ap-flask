@@ -15,7 +15,7 @@ def login():
         else:
             flash("Credenciales inválidas")
 
-    return render_template('login_page.html')
+    return render_template('auth/login.html')
 
 @auth_bp.route('/logout')
 def logout():
