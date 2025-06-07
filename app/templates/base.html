@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}Librería{% endblock %}</title>
+</head>
+<body>
+    {% if session.get('user') %}
+        <p>Usuario: {{ session['user'] }} | <a href="{{ url_for('auth.logout') }}">Salir</a></p>
+    {% endif %}
+
+    {% block content %}{% endblock %}
+</body>
+</html>
+<nav>
+    <a href="{{ url_for('home.index') }}">Home</a> |
+    {% if session.get('user') %}
+        <a href="{{ url_for('orders.index') }}">Órdenes</a> |
+        <a href="{{ url_for('auth.logout') }}">Salir</a>
+    {% endif %}
+</nav>
+<hr>

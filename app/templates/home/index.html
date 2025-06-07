@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Inicio</h2>
+<p>Bienvenido, <strong>{{ session['user'] }}</strong>.</p>
+<p>Este es tu panel principal.</p>
+
+<ul>
+    <li><a href="{{ url_for('orders.index') }}">Ver órdenes</a></li>
+    <li><a href="{{ url_for('auth.logout') }}">Cerrar sesión</a></li>
+</ul>
+{% endblock %}
