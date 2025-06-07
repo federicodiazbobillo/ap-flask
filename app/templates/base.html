@@ -130,6 +130,8 @@
         fetch('/meli/token')
             .then(response => response.json())
             .then(data => {
+                console.log('DEBUG /meli/token response:', data);  // ✅ línea de depuración
+
                 const el = document.getElementById('token-status');
                 if (!el) return;
 
@@ -137,6 +139,12 @@
                     el.textContent = '✅ Token Mercado Libre válido';
                     el.classList.remove('text-danger');
                     el.classList.add('text-success');
+
+                    // Mostrar token visualmente (solo para debug)
+                    const debugSpan = document.createElement('span');
+                    debugSpan.classList.add('nav-link', 'text-muted');
+                    debugSpan.textContent = '🔑 ' + data.access_token;
+                    el.parentNode.insertBefore(debugSpan, el.nextSibling);
                 } else {
                     el.textContent = '❌ Token inválido';
                     el.classList.remove('text-success');
@@ -149,10 +157,11 @@
                     el.textContent = '⚠️ Error al verificar token';
                     el.classList.add('text-danger');
                 }
-                console.error(error);
+                console.error('ERROR verificando token:', error);
             });
     });
 </script>
+
 
 </body>
 </html>
