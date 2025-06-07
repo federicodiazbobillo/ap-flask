@@ -82,7 +82,12 @@ def callback_meli():
 
 @meli_controller.route('/meli/token')
 def obtener_token_meli():
-    token, user_id, error = verificar_meli()
-    if error:
-        return {"error": error}, 200
-    return {"access_token": token, "user_id": user_id}, 200
+    try:
+        token, user_id, error = verificar_meli()
+        if error:
+            return {"error": error}, 200
+        return {"access_token": token, "user_id": user_id}, 200
+    except Exception as e:
+        import traceback
+        print("❌ ERROR EN /meli/token:", traceback.format_exc())
+        return {"error": f"Excepción inesperada: {str(e)}"}, 500
