@@ -5,18 +5,17 @@
     <title>{% block title %}Librería{% endblock %}</title>
 </head>
 <body>
-    {% if session.get('user') %}
-        <p>Usuario: {{ session['user'] }} | <a href="{{ url_for('auth.logout') }}">Salir</a></p>
-    {% endif %}
 
-    {% block content %}{% endblock %}
-</body>
-</html>
-<nav>
-    <a href="{{ url_for('home.index') }}">Home</a> |
-    {% if session.get('user') %}
+{% if session.get('user') %}
+    <nav>
+        <a href="{{ url_for('home.index') }}">Home</a> |
         <a href="{{ url_for('orders.index') }}">Órdenes</a> |
         <a href="{{ url_for('auth.logout') }}">Salir</a>
-    {% endif %}
-</nav>
-<hr>
+    </nav>
+    <hr>
+{% endif %}
+
+{% block content %}{% endblock %}
+
+</body>
+</html>
