@@ -8,7 +8,6 @@
     <!-- CSS -->
     <link href="{{ url_for('static', filename='themes/sb-admin-2/css/sb-admin-2.min.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
-    <!--link rel="icon" href="{{ url_for('static', filename='themes/sb-admin-2/img/favicon.ico') }}" type="image/x-icon"-->
 </head>
 <body id="page-top">
 
@@ -60,7 +59,8 @@
             <!-- Topbar -->
             <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
                 <ul class="navbar-nav ml-auto">
-                    
+
+                    <!-- DB status -->
                     <li class="nav-item">
                         <span class="nav-link text-success">
                             {% if db_connected %}
@@ -71,6 +71,7 @@
                         </span>
                     </li>
 
+                    <!-- Token Mercado Libre -->
                     <li class="nav-item">
                         <span class="nav-link {% if meli_token_valido %}text-success{% else %}text-danger{% endif %}">
                             {% if meli_token_valido %}
@@ -81,10 +82,16 @@
                         </span>
                     </li>
 
+                    <!-- Botón para ver token o error -->
                     <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="mostrarToken()">🔍 Ver token</a>
+                        {% if meli_token_valido %}
+                            <a class="nav-link" href="#" onclick="mostrarToken()">🔍 Ver token</a>
+                        {% else %}
+                            <a class="nav-link" href="#" onclick="mostrarError()">⚠️ Ver error</a>
+                        {% endif %}
                     </li>
 
+                    <!-- Usuario -->
                     <li class="nav-item">
                         <span class="nav-link text-gray-600 small">Bienvenido, {{ session['user'] }}</span>
                     </li>
@@ -92,7 +99,7 @@
             </nav>
             {% endif %}
 
-            <!-- Main Page Content -->
+            <!-- Main Content -->
             <div class="container-fluid">
                 {% block content %}{% endblock %}
             </div>
@@ -109,15 +116,10 @@
     </div>
 </div>
 
-<!-- JS 
-<script src="{{ url_for('static', filename='themes/sb-admin-2/vendor/jquery/jquery.min.js') }}"></script>
-<script src="{{ url_for('static', filename='themes/sb-admin-2/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-<script src="{{ url_for('static', filename='themes/sb-admin-2/vendor/jquery-easing/jquery.easing.min.js') }}"></script>
-<script src="{{ url_for('static', filename='themes/sb-admin-2/js/sb-admin-2.min.js') }}"></script>
--->
+<!-- JS -->
 <script>
     function mostrarToken() {
-        fetch('/meli/token')  // Ruta que vamos a crear ahora
+        fetch('/meli/token')
             .then(response => response.json())
             .then(data => {
                 if (data.access_token) {
@@ -128,6 +130,22 @@
             })
             .catch(error => {
                 alert("Error al obtener el token.");
+                console.error(error);
+            });
+    }
+
+    function mostrarError() {
+        fetch('/meli/token')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert("Error:\n" + JSON.stringify(data.error, null, 2));
+                } else {
+                    alert("No se pudo obtener el detalle del error.");
+                }
+            })
+            .catch(error => {
+                alert("Error al obtener el error del token.");
                 console.error(error);
             });
     }

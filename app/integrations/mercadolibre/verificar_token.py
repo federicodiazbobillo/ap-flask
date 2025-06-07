@@ -18,9 +18,12 @@ def verificar_meli():
         response = requests.get(url)
 
         if response.status_code == 200:
-            return True, {}
+             return {"valido": True, "access_token": access_token}
         else:
-            return False, response.json()
+            return {
+                "valido": False,
+                "error": response.json()  # Devuelve el JSON con "error", "message", etc.
+            }
 
     except Exception as e:
         current_app.logger.error(f"Error al verificar token de Mercado Libre: {e}")
