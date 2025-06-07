@@ -138,4 +138,13 @@ def obtener_token_meli():
     token, user_id, error = verificar_meli()
     if error:
         return {"error": error}, 200
-    return {"access_token": token, "user_id": user_id}, 200
+    # Opcional: validar manualmente
+    response = requests.get("https://api.mercadolibre.com/users/me", headers={
+        "Authorization": f"Bearer {token}"
+    })
+    return {
+        "access_token": token,
+        "user_id": user_id,
+        "meli_status_code": response.status_code,
+        "meli_response": response.json()
+    }, 200
