@@ -2,7 +2,6 @@ import requests
 from flask import current_app
 from app.db import get_conn
 
-
 def verificar_meli():
     try:
         conn = get_conn()
@@ -18,19 +17,15 @@ def verificar_meli():
         response = requests.get(url)
 
         if response.status_code == 200:
-             return {"valido": True, "access_token": access_token}
+            return True, {"access_token": access_token}
         else:
-            return { 
-                "valido": False,
-                "error": response.json()  # Devuelve el JSON con "error", "message", etc.
-            }
+            return False, response.json()
 
     except Exception as e:
         current_app.logger.error(f"Error al verificar token de Mercado Libre: {e}")
         return False, {"error": str(e)}
 
-
-# 🔁 Esto lo expone automáticamente a Jinja 
+# 🔁 Context processor
 def init_token_context(app):
     @app.context_processor
     def inject_meli_token_status():
