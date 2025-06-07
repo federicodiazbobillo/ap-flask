@@ -3,7 +3,8 @@ from app.db import get_conn
 
 def verificar_meli():
     conn = get_conn()
-    cursor = conn.cursor(dictionary=True)
+    cursor = conn.cursor(buffered=True)
+    columns = [col[0] for col in cursor.description]
     cursor.execute("SELECT * FROM meli_access LIMIT 1")
     row = cursor.fetchone()
     cursor.close()
