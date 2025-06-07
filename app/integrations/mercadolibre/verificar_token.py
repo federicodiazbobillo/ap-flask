@@ -20,7 +20,7 @@ def verificar_meli():
         if response.status_code == 200:
              return {"valido": True, "access_token": access_token}
         else:
-            return {
+            return { 
                 "valido": False,
                 "error": response.json()  # Devuelve el JSON con "error", "message", etc.
             }
@@ -30,7 +30,7 @@ def verificar_meli():
         return False, {"error": str(e)}
 
 
-# 🔁 Esto lo expone automáticamente a Jinja
+# 🔁 Esto lo expone automáticamente a Jinja 
 def init_token_context(app):
     @app.context_processor
     def inject_meli_token_status():
