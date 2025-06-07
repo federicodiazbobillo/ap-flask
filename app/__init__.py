@@ -1,7 +1,9 @@
+import os
 from flask import Flask
 from flask_mysqldb import MySQL
 from app.config import Config
-import MySQLdb
+from app.integrations.mercadolibre.verificar_token import verificar_meli
+from app.utils.blueprint_loader import register_blueprints  # nuevo cargador automático
 
 mysql = MySQL()
 
@@ -20,12 +22,15 @@ def create_app():
     except Exception:
         app.jinja_env.globals['db_connected'] = False
 
-    from app.controllers.auth import auth_bp
-    from app.controllers.home import home_bp
-    from app.controllers.orders import orders_bp
+    # Verificar token de Mercado Libre
+    try:
+        token_valido = verificar_meli()
+        app.jinja_env.globals['meli_token_valido'] = token_valido
+    except Exception:
+        app.jinja_env.globals['meli_token_valido'] = False
 
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(home_bp)
-    app.register_blueprint(orders_bp)
+    # Registro automático de blueprints
+    register_blueprints(app, 'app.controllers', os.path.join(app.root_path, 'controllers'))
+    register_blueprints(app, 'app.integrations.mercadolibre', os.path.join(app.root_path, 'integrations', 'mercadolibre'))
 
     return app

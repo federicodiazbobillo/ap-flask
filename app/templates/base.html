@@ -60,13 +60,31 @@
             <!-- Topbar -->
             <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
                 <ul class="navbar-nav ml-auto">
-                    <li class="nav-item mt-2">
-                        {% if db_connected %}
-                            <span class="badge badge-success">Base conectada</span>
-                        {% else %}
-                            <span class="badge badge-danger">Sin conexión a DB</span>
-                        {% endif %}
+                    
+                    <li class="nav-item">
+                        <span class="nav-link text-success">
+                            {% if db_connected %}
+                                ✅ DB conectada
+                            {% else %}
+                                ❌ DB desconectada
+                            {% endif %}
+                        </span>
                     </li>
+
+                    <li class="nav-item">
+                        <span class="nav-link {% if meli_token_valido %}text-success{% else %}text-danger{% endif %}">
+                            {% if meli_token_valido %}
+                                ✅ Token Mercado Libre válido
+                            {% else %}
+                                ❌ Token inválido
+                            {% endif %}
+                        </span>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" onclick="mostrarToken()">🔍 Ver token</a>
+                    </li>
+
                     <li class="nav-item">
                         <span class="nav-link text-gray-600 small">Bienvenido, {{ session['user'] }}</span>
                     </li>
@@ -97,5 +115,23 @@
 <script src="{{ url_for('static', filename='themes/sb-admin-2/vendor/jquery-easing/jquery.easing.min.js') }}"></script>
 <script src="{{ url_for('static', filename='themes/sb-admin-2/js/sb-admin-2.min.js') }}"></script>
 -->
+<script>
+    function mostrarToken() {
+        fetch('/meli/token')  // Ruta que vamos a crear ahora
+            .then(response => response.json())
+            .then(data => {
+                if (data.access_token) {
+                    alert("Access Token:\n" + data.access_token);
+                } else {
+                    alert("No hay token disponible en la base de datos.");
+                }
+            })
+            .catch(error => {
+                alert("Error al obtener el token.");
+                console.error(error);
+            });
+    }
+</script>
+
 </body>
 </html>
