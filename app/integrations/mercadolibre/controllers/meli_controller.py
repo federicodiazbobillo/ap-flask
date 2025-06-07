@@ -1,6 +1,6 @@
 import requests
 from flask import Blueprint, redirect, request
-from app.db import get_db_connection
+from app.db import get_conn
 
 meli_controller = Blueprint('meli_controller', __name__)
 
@@ -8,7 +8,7 @@ from app.integrations.mercadolibre.context import init_meli_context
 init_meli_context(meli_controller)
 
 def obtener_credenciales_meli():
-    conn = get_db_connection()
+    conn = get_conn()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM meli_access LIMIT 1")
     row = cursor.fetchone()
@@ -66,7 +66,7 @@ def callback_meli():
     user_id = data['user_id']
 
     # Guardar en la base de datos
-    conn = get_db_connection()
+    conn = get_conn()
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO meli_access (user_id, access_token, refresh_token, app_id, secret_key)
@@ -80,7 +80,7 @@ def callback_meli():
     return "Conexión con Mercado Libre realizada correctamente."
 
 def verificar_meli():
-    conn = get_db_connection()
+    conn = get_conn()
     cursor = conn.cursor(dictionary=True)
     cursor.execute("SELECT * FROM meli_access LIMIT 1")
     row = cursor.fetchone()
@@ -120,7 +120,7 @@ def verificar_meli():
     new_access_token = data['access_token']
     new_refresh_token = data.get('refresh_token')
 
-    conn = get_db_connection()
+    conn = get_conn()
     cursor = conn.cursor()
     cursor.execute("""
         UPDATE meli_access
