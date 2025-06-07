@@ -10,7 +10,7 @@ def login():
 
         if validate_login(username, password):
             session['user'] = username
-            return redirect(url_for('orders.index'))
+            return redirect(url_for('home.index'))
         else:
             flash("Credenciales inválidas")
 
