@@ -1,6 +1,7 @@
-from flask import current_app
 import requests
-from app.db import get_conn  # Este es tu acceso único permitido a MySQL
+from flask import current_app
+from app.db import get_conn
+
 
 def verificar_meli():
     try:
@@ -10,19 +11,34 @@ def verificar_meli():
         result = cursor.fetchone()
 
         if not result or not result[0]:
-            current_app.logger.warning("No se encontró un access_token válido en la base de datos.")
-            return False
+            return False, {"error": "No se encontró un access_token válido."}
 
         access_token, user_id = result
         url = f"https://api.mercadolibre.com/users/me?access_token={access_token}"
         response = requests.get(url)
 
         if response.status_code == 200:
-            return True  # o incluso response.json() si querés más info
+            return True, {}
         else:
-            current_app.logger.warning(f"Token inválido o expirado para user_id {user_id}. Status: {response.status_code}")
-            return False
+            return False, response.json()
 
     except Exception as e:
         current_app.logger.error(f"Error al verificar token de Mercado Libre: {e}")
-        return False
+        return False, {"error": str(e)}
+
+
+# 🔁 Esto lo expone automáticamente a Jinja
+def init_token_context(app):
+    @app.context_processor
+    def inject_meli_token_status():
+        try:
+            valido, info = verificar_meli()
+            return {
+                'meli_token_valido': valido,
+                'meli_token_info': info
+            }
+        except Exception as e:
+            return {
+                'meli_token_valido': False,
+                'meli_token_info': {'error': str(e)}
+            }
