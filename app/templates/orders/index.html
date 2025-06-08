@@ -48,5 +48,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 </script>
+<script>
+document.getElementById('btn-sincronizar-id').addEventListener('click', () => {
+    const orderId = document.getElementById('input-order-id').value.trim();
+    if (!orderId) {
+        alert('⚠️ Debes ingresar un ID de orden válido');
+        return;
+    }
 
+    fetch(`/ordenes/sincronizar?id=${orderId}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) {
+                alert(data.message);
+            } else {
+                alert(data.message);
+                // Opcional: actualizar listado o mostrar orden sincronizada
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            alert('❌ Error inesperado al sincronizar orden.');
+        });
+});
+</script>
 {% endblock %}
