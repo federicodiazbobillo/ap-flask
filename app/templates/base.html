@@ -131,6 +131,21 @@
     </div>
   </div>
 </div>
+<!-- Modal de carga al iniciar -->
+<div class="modal fade" id="modalCargandoInicio" tabindex="-1" role="dialog" style="display: block; background: rgba(255,255,255,0.8);">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <div><strong>Cargando sitio...</strong></div>
+    </div>
+  </div>
+</div>
+
+<style>
+  body.modal-open {
+    overflow: hidden;
+  }
+</style>
 
 <!-- JS -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -164,6 +179,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        // ✅ Verificación del token
         fetch('/meli/token')
             .then(response => response.json())
             .then(data => {
@@ -186,8 +202,20 @@
                 }
                 console.error('ERROR verificando token:', error);
             });
+
+        // ✅ Ocultar modal de carga cuando todo el sitio haya cargado
+        window.addEventListener('load', () => {
+            const modal = document.getElementById('modalCargandoInicio');
+            if (modal) {
+                modal.classList.remove('show');
+                modal.style.display = 'none';
+                document.body.classList.remove('modal-open');
+                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            }
+        });
     });
 </script>
+
 
 </body>
 </html>
