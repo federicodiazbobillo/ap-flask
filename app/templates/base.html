@@ -40,8 +40,8 @@
                 🧾 Orders
             </a>
             <div class="dropdown-menu" aria-labelledby="ordersDropdown">
-                <a class="dropdown-item" href="{{ url_for('orders_costos.index_costos') }}">📦 Costos</a>
-                <a class="dropdown-item" href="{{ url_for('orders_logistica.index_logistica') }}">🚚 Logística</a>
+                <a class="dropdown-item {% if tipo == 'costos' %}active{% endif %}" href="{{ url_for('orders_costos.index_costos') }}">📦 Costos</a>
+                <a class="dropdown-item {% if tipo == 'logistica' %}active{% endif %}" href="{{ url_for('orders_logistica.index_logistica') }}">🚚 Logística</a>
             </div>
         </li>
 
@@ -135,19 +135,17 @@
 <!-- JS -->
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 
 <script>
     function mostrarToken() {
         fetch('/meli/token')
             .then(response => response.json())
             .then(data => {
-                if (data.access_token) {
-                    document.getElementById('contenidoToken').textContent = data.access_token;
-                    $('#modalToken').modal('show');
-                } else {
-                    document.getElementById('contenidoToken').textContent = '⚠️ No se pudo obtener el token.';
-                    $('#modalToken').modal('show');
-                }
+                const contenido = document.getElementById('contenidoToken');
+                contenido.textContent = data.access_token || '⚠️ No se pudo obtener el token.';
+                $('#modalToken').modal('show');
             })
             .catch(error => {
                 document.getElementById('contenidoToken').textContent = '❌ Error inesperado:\n' + error;
@@ -161,9 +159,7 @@
         navigator.clipboard.writeText(contenido).then(() => {
             const confirm = document.getElementById('copy-confirm');
             confirm.style.display = 'inline';
-            setTimeout(() => {
-                confirm.style.display = 'none';
-            }, 2000);
+            setTimeout(() => { confirm.style.display = 'none'; }, 2000);
         });
     }
 
@@ -176,12 +172,10 @@
 
                 if (data.access_token) {
                     el.textContent = '✅ Token Mercado Libre válido';
-                    el.classList.remove('text-danger');
-                    el.classList.add('text-success');
+                    el.classList.replace('text-muted', 'text-success');
                 } else {
                     el.textContent = '❌ Token inválido';
-                    el.classList.remove('text-success');
-                    el.classList.add('text-danger');
+                    el.classList.replace('text-muted', 'text-danger');
                 }
             })
             .catch(error => {
@@ -194,10 +188,6 @@
             });
     });
 </script>
-<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
 </html>
