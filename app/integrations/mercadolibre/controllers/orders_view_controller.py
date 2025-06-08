@@ -9,6 +9,7 @@ def index():
     conn = get_conn()
     cursor = conn.cursor(dictionary=True)
 
+    # Obtener las 50 órdenes más recientes
     cursor.execute("""
         SELECT o.*, s.list_cost
         FROM orders o
@@ -18,20 +19,20 @@ def index():
     """)
     ordenes = cursor.fetchall()
 
+    # Obtener los IDs
     orden_ids = [o['order_id'] for o in ordenes]
     items_map = {}
 
     if orden_ids:
-        cursor.execute("""
-            SELECT * FROM order_items
-            WHERE order_id IN (%s)
-        """ % ','.join(['%s'] * len(orden_ids)), orden_ids)
+        format_strings = ','.join(['%s'] * len(orden_ids))
+        query = f"SELECT * FROM order_items WHERE order_id IN ({format_strings})"
+        cursor.execute(query, tuple(orden_ids))
         items = cursor.fetchall()
 
         for item in items:
             items_map.setdefault(item['order_id'], []).append(item)
 
-    # Asignar items a cada orden
+    # Asociar ítems y envío
     for orden in ordenes:
         orden['items'] = items_map.get(orden['order_id'], [])
         orden['shipping'] = {
@@ -40,3 +41,4 @@ def index():
 
     cursor.close()
     return render_template('orders/index.html', ordenes=ordenes)
+
