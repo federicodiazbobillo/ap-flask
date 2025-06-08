@@ -51,15 +51,19 @@
             </a>
         </li>
 
-        <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="ordersDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseOrders"
+            aria-expanded="false" aria-controls="collapseOrders">
                 🧾 Orders
             </a>
-            <div class="dropdown-menu" aria-labelledby="ordersDropdown">
-                <a class="dropdown-item {% if tipo == 'costos' %}active{% endif %}" href="{{ url_for('orders_costos.index_costos') }}">📦 Costos</a>
-                <a class="dropdown-item {% if tipo == 'logistica' %}active{% endif %}" href="{{ url_for('orders_logistica.index_logistica') }}">🚚 Logística</a>
+            <div id="collapseOrders" class="collapse {% if tipo in ['costos', 'logistica'] %}show{% endif %}" data-parent="#accordionSidebar">
+                <div class="bg-white py-2 collapse-inner rounded">
+                    <a class="collapse-item {% if tipo == 'costos' %}active{% endif %}" href="{{ url_for('orders_costos.index_costos') }}">📦 Costos</a>
+                    <a class="collapse-item {% if tipo == 'logistica' %}active{% endif %}" href="{{ url_for('orders_logistica.index_logistica') }}">🚚 Logística</a>
+                </div>
             </div>
         </li>
+
 
         <li class="nav-item">
             <a class="nav-link" href="{{ url_for('auth.logout') }}">
