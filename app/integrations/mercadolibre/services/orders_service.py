@@ -105,21 +105,40 @@ def guardar_ordenes_en_db(ordenes, user_meli_id=None):
             if not item_id:
                 continue
 
+            # Verificar si ya existe el registro
             cursor.execute("""
-                INSERT INTO order_items (
-                    order_id, item_id, seller_sku, quantity,
-                    manufacturing_days, sale_fee
-                )
-                VALUES (%s, %s, %s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE
-                    seller_sku = VALUES(seller_sku),
-                    quantity = VALUES(quantity),
-                    manufacturing_days = VALUES(manufacturing_days),
-                    sale_fee = VALUES(sale_fee)
-            """, (
-                order_id, item_id, seller_sku,
-                quantity, manufacturing_days, sale_fee
-            ))
+                SELECT 1 FROM order_items
+                WHERE order_id = %s AND item_id = %s
+            """, (order_id, item_id))
+
+            existe = cursor.fetchone()
+
+            if existe:
+                # Si existe, hacer UPDATE
+                cursor.execute("""
+                    UPDATE order_items
+                    SET seller_sku = %s,
+                        quantity = %s,
+                        manufacturing_days = %s,
+                        sale_fee = %s
+                    WHERE order_id = %s AND item_id = %s
+                """, (
+                    seller_sku, quantity, manufacturing_days, sale_fee,
+                    order_id, item_id
+                ))
+            else:
+                # Si no existe, hacer INSERT
+                cursor.execute("""
+                    INSERT INTO order_items (
+                        order_id, item_id, seller_sku, quantity,
+                        manufacturing_days, sale_fee
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                """, (
+                    order_id, item_id, seller_sku,
+                    quantity, manufacturing_days, sale_fee
+                ))
+
 
     conn.commit()
     cursor.close()
