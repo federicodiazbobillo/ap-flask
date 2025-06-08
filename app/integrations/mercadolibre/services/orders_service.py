@@ -57,7 +57,7 @@ def obtener_ordenes(access_token, user_id, date_from=None, date_to=None):
 
 
 
-def guardar_ordenes_en_db(ordenes):
+def guardar_ordenes_en_db(ordenes, user_meli_id=None):
     conn = get_conn()
     cursor = conn.cursor()
 
@@ -74,23 +74,23 @@ def guardar_ordenes_en_db(ordenes):
         if not order_id or not created_at:
             continue
 
-        # Insert/update en orders
         cursor.execute("""
             INSERT INTO orders (
                 order_id, created_at, last_updated, pack_id,
-                total_amount, status, manufacturing_ending_date, shipping_id
+                total_amount, status, manufacturing_ending_date, shipping_id, user_meli_id
             )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 last_updated = VALUES(last_updated),
                 pack_id = VALUES(pack_id),
                 total_amount = VALUES(total_amount),
                 status = VALUES(status),
                 manufacturing_ending_date = VALUES(manufacturing_ending_date),
-                shipping_id = VALUES(shipping_id)
+                shipping_id = VALUES(shipping_id),
+                user_meli_id = VALUES(user_meli_id)
         """, (
             order_id, created_at, last_updated, pack_id,
-            total_amount, status, manufacturing_ending_date, shipping_id
+            total_amount, status, manufacturing_ending_date, shipping_id, user_meli_id
         ))
 
         # Insert/update en order_items
