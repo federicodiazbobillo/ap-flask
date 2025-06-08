@@ -39,7 +39,7 @@
     <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion toggled" id="accordionSidebar">
         <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{{ url_for('home.index') }}">
             <div class="sidebar-brand-icon rotate-n-15">
-                <i class="fas fa-laugh-wink"></i>
+                <i class="fas fa-book"></i>
             </div>
             <div class="sidebar-brand-text mx-3">Apricor</div>
         </a>
@@ -53,16 +53,19 @@
 
         <li class="nav-item">
             <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseOrders"
-            aria-expanded="false" aria-controls="collapseOrders">
-                🧾 Orders
+            aria-expanded="true" aria-controls="collapseOrders">
+                <i class="fas fa-fw fa-file-alt"></i>
+                <span>Orders</span>
             </a>
-            <div id="collapseOrders" class="collapse {% if tipo in ['costos', 'logistica'] %}show{% endif %}" data-parent="#accordionSidebar">
+            <div id="collapseOrders" class="collapse {% if tipo in ['costos', 'logistica'] %}show{% endif %}" aria-labelledby="headingOrders" data-parent="#accordionSidebar">
                 <div class="bg-white py-2 collapse-inner rounded">
+                    <h6 class="collapse-header">Gestión:</h6>
                     <a class="collapse-item {% if tipo == 'costos' %}active{% endif %}" href="{{ url_for('orders_costos.index_costos') }}">📦 Costos</a>
                     <a class="collapse-item {% if tipo == 'logistica' %}active{% endif %}" href="{{ url_for('orders_logistica.index_logistica') }}">🚚 Logística</a>
                 </div>
             </div>
         </li>
+
 
 
         <li class="nav-item">
