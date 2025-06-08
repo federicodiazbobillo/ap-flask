@@ -26,7 +26,7 @@ def sincronizar_ordenes():
                 "message": f"❌ No se encontró la orden {order_id} o no está disponible."
             }), 404
 
-        guardar_ordenes_en_db([orden])
+        guardar_ordenes_en_db([orden], user_meli_id=user_id)
         return jsonify({
             "error": False,
             "message": f"✅ Orden {order_id} sincronizada correctamente.",
