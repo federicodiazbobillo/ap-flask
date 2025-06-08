@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template
 from app.db import get_conn
 
-orders_view_bp = Blueprint('orders_view', __name__, url_prefix='/ordenes')
+orders_view_bp = Blueprint('orders_view', __name__, url_prefix='/orders')
 
 @orders_view_bp.route('/')
 def index():
