@@ -27,11 +27,12 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+    // Botón sincronizar todo
     const btn = document.getElementById('btn-sincronizar-ordenes');
     if (btn) {
         btn.addEventListener('click', function (e) {
             e.preventDefault();
-            $('#modalCargando').modal('show'); // Mostrar modal
+            $('#modalCargando').modal('show');
 
             fetch('/ordenes/sincronizar')
                 .then(res => res.json())
@@ -46,30 +47,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
         });
     }
-});
-</script>
-<script>
-document.getElementById('btn-sincronizar-id').addEventListener('click', () => {
-    const orderId = document.getElementById('input-order-id').value.trim();
-    if (!orderId) {
-        alert('⚠️ Debes ingresar un ID de orden válido');
-        return;
-    }
 
-    fetch(`/ordenes/sincronizar?id=${orderId}`)
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.message);
-            } else {
-                alert(data.message);
-                // Opcional: actualizar listado o mostrar orden sincronizada
+    // Botón sincronizar por ID
+    const btnId = document.getElementById('btn-sincronizar-id');
+    if (btnId) {
+        btnId.addEventListener('click', () => {
+            const orderId = document.getElementById('input-order-id').value.trim();
+            if (!orderId) {
+                alert('⚠️ Debes ingresar un ID de orden válido');
+                return;
             }
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            alert('❌ Error inesperado al sincronizar orden.');
+
+            fetch(`/ordenes/sincronizar?id=${orderId}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.message);
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    alert('❌ Error inesperado al sincronizar orden.');
+                });
         });
+    }
 });
 </script>
+
 {% endblock %}
