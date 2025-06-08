@@ -47,15 +47,35 @@ def guardar_ordenes_en_db(ordenes):
 
     for orden in ordenes:
         order_id = orden.get("id")
-        date_created = orden.get("date_created")  # ISO 8601
+        created_at = orden.get("date_created")
+        last_updated = orden.get("last_updated")
+        pack_id = orden.get("pack_id")
+        total_amount = orden.get("total_amount")
+        status = orden.get("status")
+        manufacturing_ending_date = orden.get("manufacturing_ending_date")
 
-        if not order_id or not date_created:
+        if not order_id or not created_at:
             continue
 
+        # Usamos ON DUPLICATE KEY UPDATE para hacer UPSERT
         cursor.execute("""
-            INSERT IGNORE INTO orders (order_id, created_at)
-            VALUES (%s, %s)
-        """, (order_id, date_created))
+            INSERT INTO orders (order_id, created_at, last_updated, pack_id, total_amount, status, manufacturing_ending_date)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                last_updated = VALUES(last_updated),
+                pack_id = VALUES(pack_id),
+                total_amount = VALUES(total_amount),
+                status = VALUES(status),
+                manufacturing_ending_date = VALUES(manufacturing_ending_date)
+        """, (
+            order_id,
+            created_at,
+            last_updated,
+            pack_id,
+            total_amount,
+            status,
+            manufacturing_ending_date
+        ))
 
     conn.commit()
     cursor.close()
