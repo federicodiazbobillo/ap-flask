@@ -117,6 +117,18 @@ def guardar_ordenes_en_db(ordenes):
     cursor.close()
 
 
+def obtener_orden_por_id(access_token, order_id):
+    url = f"https://api.mercadolibre.com/orders/{order_id}"
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
 
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code != 200:
+        print(f"❌ Error al obtener orden {order_id}: {response.status_code}")
+        return None
+
+    return response.json()
 
 
