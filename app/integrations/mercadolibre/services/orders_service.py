@@ -41,6 +41,8 @@ def obtener_ordenes(access_token, user_id):
         "ordenes": ordenes
     }
 
+from app.db import get_conn
+
 def guardar_ordenes_en_db(ordenes):
     conn = get_conn()
     cursor = conn.cursor()
@@ -53,20 +55,24 @@ def guardar_ordenes_en_db(ordenes):
         total_amount = orden.get("total_amount")
         status = orden.get("status")
         manufacturing_ending_date = orden.get("manufacturing_ending_date")
+        shipping_id = orden.get("shipping", {}).get("id")
 
         if not order_id or not created_at:
             continue
 
-        # Usamos ON DUPLICATE KEY UPDATE para hacer UPSERT
         cursor.execute("""
-            INSERT INTO orders (order_id, created_at, last_updated, pack_id, total_amount, status, manufacturing_ending_date)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO orders (
+                order_id, created_at, last_updated, pack_id,
+                total_amount, status, manufacturing_ending_date, shipping_id
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 last_updated = VALUES(last_updated),
                 pack_id = VALUES(pack_id),
                 total_amount = VALUES(total_amount),
                 status = VALUES(status),
-                manufacturing_ending_date = VALUES(manufacturing_ending_date)
+                manufacturing_ending_date = VALUES(manufacturing_ending_date),
+                shipping_id = VALUES(shipping_id)
         """, (
             order_id,
             created_at,
@@ -74,7 +80,8 @@ def guardar_ordenes_en_db(ordenes):
             pack_id,
             total_amount,
             status,
-            manufacturing_ending_date
+            manufacturing_ending_date,
+            shipping_id
         ))
 
     conn.commit()
