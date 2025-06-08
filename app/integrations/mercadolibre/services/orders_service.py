@@ -126,17 +126,40 @@ def guardar_ordenes_en_db(ordenes, user_meli_id=None):
 
 
 def obtener_orden_por_id(access_token, order_id):
-    url = f"https://api.mercadolibre.com/orders/{order_id}"
     headers = {
         "Authorization": f"Bearer {access_token}"
     }
 
-    response = requests.get(url, headers=headers)
-    
-    if response.status_code != 200:
-        print(f"❌ Error al obtener orden {order_id}: {response.status_code}")
-        return None
+    # Primer intento: buscar como ID de orden
+    url_orden = f"https://api.mercadolibre.com/orders/{order_id}"
+    response = requests.get(url_orden, headers=headers)
 
-    return response.json()
+    if response.status_code == 200:
+        return response.json()
+
+    # Si no existe como orden, intentar como pack_id
+    if response.status_code == 404:
+        url_pack = f"https://api.mercadolibre.com/packs/{order_id}"
+        resp_pack = requests.get(url_pack, headers=headers)
+
+        if resp_pack.status_code == 200:
+            data = resp_pack.json()
+            ordenes = data.get("orders", [])
+            if ordenes:
+                real_order_id = ordenes[0].get("id")
+                # Segundo intento con el ID real
+                response2 = requests.get(f"https://api.mercadolibre.com/orders/{real_order_id}", headers=headers)
+                if response2.status_code == 200:
+                    return response2.json()
+                else:
+                    print(f"❌ Error al obtener orden desde pack {real_order_id}: {response2.status_code}")
+                    return None
+        else:
+            print(f"❌ Error al buscar como pack_id {order_id}: {resp_pack.status_code}")
+            return None
+
+    print(f"❌ Error desconocido al buscar orden {order_id}: {response.status_code}")
+    return None
+
 
 
