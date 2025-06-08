@@ -25,10 +25,25 @@
   </div>
 </div>
 
+<div id="mensaje-exito" class="card bg-success text-white shadow mb-4" style="display: none;">
+    <div class="card-body">✅ Sincronización exitosa</div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const mostrarModal = () => $('#modalCargando').modal('show');
     const ocultarModal = () => $('#modalCargando').modal('hide');
+
+    const mostrarMensajeExito = (mensaje) => {
+        const div = document.getElementById('mensaje-exito');
+        if (div) {
+            div.innerHTML = `<div class="card-body">${mensaje}</div>`;
+            div.style.display = 'block';
+            setTimeout(() => {
+                div.style.display = 'none';
+            }, 4000);
+        }
+    };
 
     const manejarRespuesta = (res) => {
         ocultarModal();
@@ -36,8 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
             alert(res.message || '❌ Error al sincronizar.');
         } else {
             console.log(res);
-            // Si querés mostrar el total, descomentá:
-            // alert(res.message);
+            mostrarMensajeExito(res.message || '✅ Sincronización exitosa.');
         }
     };
 
@@ -114,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
 </script>
 
 
