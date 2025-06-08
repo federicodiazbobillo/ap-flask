@@ -8,6 +8,30 @@
     </a>
 </div>
 
-<p>Has iniciado sesión como <strong>{{ session['user'] }}</strong>.</p>
-<a href="{{ url_for('auth.logout') }}">Cerrar sesión</a>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btn-sincronizar-ordenes');
+    if (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Sincronizando...';
+
+            fetch('/ordenes/sincronizar')
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message);
+                })
+                .catch(err => {
+                    alert('❌ Error al sincronizar');
+                    console.error(err);
+                })
+                .finally(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '🔄 Sincronizar órdenes';
+                });
+        });
+    }
+});
+</script>
 {% endblock %}
