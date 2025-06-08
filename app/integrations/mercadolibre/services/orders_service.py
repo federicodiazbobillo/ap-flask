@@ -60,6 +60,7 @@ def guardar_ordenes_en_db(ordenes):
         if not order_id or not created_at:
             continue
 
+        # Insert/update en orders
         cursor.execute("""
             INSERT INTO orders (
                 order_id, created_at, last_updated, pack_id,
@@ -74,15 +75,36 @@ def guardar_ordenes_en_db(ordenes):
                 manufacturing_ending_date = VALUES(manufacturing_ending_date),
                 shipping_id = VALUES(shipping_id)
         """, (
-            order_id,
-            created_at,
-            last_updated,
-            pack_id,
-            total_amount,
-            status,
-            manufacturing_ending_date,
-            shipping_id
+            order_id, created_at, last_updated, pack_id,
+            total_amount, status, manufacturing_ending_date, shipping_id
         ))
+
+        # Insert/update en order_items
+        for item in orden.get("order_items", []):
+            item_id = item.get("item", {}).get("id")
+            seller_sku = item.get("item", {}).get("seller_sku")
+            quantity = item.get("quantity")
+            manufacturing_days = item.get("manufacturing_days")
+            sale_fee = item.get("sale_fee")
+
+            if not item_id:
+                continue
+
+            cursor.execute("""
+                INSERT INTO order_items (
+                    order_id, item_id, seller_sku, quantity,
+                    manufacturing_days, sale_fee
+                )
+                VALUES (%s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    seller_sku = VALUES(seller_sku),
+                    quantity = VALUES(quantity),
+                    manufacturing_days = VALUES(manufacturing_days),
+                    sale_fee = VALUES(sale_fee)
+            """, (
+                order_id, item_id, seller_sku,
+                quantity, manufacturing_days, sale_fee
+            ))
 
     conn.commit()
     cursor.close()
