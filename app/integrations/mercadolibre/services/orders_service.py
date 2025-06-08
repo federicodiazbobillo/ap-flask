@@ -41,7 +41,8 @@ def obtener_ordenes(access_token, user_id, date_from=None, date_to=None):
         ordenes.extend(batch)
         offset += len(batch)
 
-    guardar_ordenes_en_db(ordenes)
+    # ✅ Aquí agregamos el user_id correctamente
+    guardar_ordenes_en_db(ordenes, user_meli_id=user_id)
 
     # recolectar shipping_ids de todas las órdenes
     shipping_ids = [orden.get("shipping", {}).get("id") for orden in ordenes if orden.get("shipping")]
