@@ -2,7 +2,7 @@ import requests
 from app.db import get_conn
 from .shipments_service import guardar_envios
 
-def obtener_ordenes(access_token, user_id):
+def obtener_ordenes(access_token, user_id, date_from=None, date_to=None):
     url = "https://api.mercadolibre.com/orders/search"
     headers = {
         "Authorization": f"Bearer {access_token}"
@@ -19,6 +19,12 @@ def obtener_ordenes(access_token, user_id):
             "offset": offset,
             "sort": "date_desc"
         }
+
+        # Si se pasa un rango de fechas, lo agregamos a los params
+        if date_from:
+            params["order.date_created.from"] = date_from
+        if date_to:
+            params["order.date_created.to"] = date_to
 
         response = requests.get(url, headers=headers, params=params)
         if response.status_code != 200:
@@ -47,6 +53,7 @@ def obtener_ordenes(access_token, user_id):
         "error": False,
         "ordenes": ordenes
     }
+
 
 
 

@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from app.db import get_conn
+from datetime import datetime, timedelta
 from app.integrations.mercadolibre.services.token_service import verificar_meli
 from app.integrations.mercadolibre.services.orders_service import (
     obtener_ordenes,
@@ -15,7 +16,7 @@ def sincronizar_ordenes():
     if error:
         return jsonify({"error": True, "message": f"❌ Error de token: {error}"}), 401
 
-    # Parámetro opcional: sincronizar orden por ID
+    # Parámetro opcional: sincronizar por ID
     order_id = request.args.get("id")
     if order_id:
         orden = obtener_orden_por_id(access_token, order_id)
@@ -32,9 +33,20 @@ def sincronizar_ordenes():
             "ordenes": [order_id]
         })
 
-    # Parámetros opcionales: rango de fechas
+    # Parámetros de periodo predefinido
+    periodo = request.args.get("periodo")
     date_from = request.args.get("from")
     date_to = request.args.get("to")
+
+    # Si no se pasan fechas y hay un periodo, calcularlas
+    if not (date_from and date_to) and periodo:
+        now = datetime.utcnow()
+        if periodo == "mes":
+            date_from = (now - timedelta(days=30)).isoformat()
+            date_to = now.isoformat()
+        elif periodo == "48h":
+            date_from = (now - timedelta(hours=48)).isoformat()
+            date_to = now.isoformat()
 
     resultado = obtener_ordenes(access_token, user_id, date_from, date_to)
 
