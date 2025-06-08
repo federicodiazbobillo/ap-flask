@@ -8,27 +8,33 @@
     </a>
 </div>
 
+<div class="modal fade" id="modalCargando" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content text-center p-4">
+      <div class="spinner-border text-primary mb-3" role="status"></div>
+      <div><strong>Sincronizando órdenes...</strong></div>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const btn = document.getElementById('btn-sincronizar-ordenes');
     if (btn) {
         btn.addEventListener('click', function (e) {
             e.preventDefault();
-            btn.disabled = true;
-            btn.innerHTML = '⏳ Sincronizando...';
+            $('#modalCargando').modal('show'); // Mostrar modal inmediatamente
 
             fetch('/ordenes/sincronizar')
                 .then(res => res.json())
                 .then(data => {
+                    $('#modalCargando').modal('hide'); // Ocultar modal al terminar
                     alert(data.message);
                 })
                 .catch(err => {
+                    $('#modalCargando').modal('hide');
                     alert('❌ Error al sincronizar');
                     console.error(err);
-                })
-                .finally(() => {
-                    btn.disabled = false;
-                    btn.innerHTML = '🔄 Sincronizar órdenes';
                 });
         });
     }
