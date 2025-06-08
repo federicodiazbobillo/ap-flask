@@ -40,5 +40,7 @@ def index():
         }
 
     cursor.close()
+    print("▶️ Órdenes totales:", len(ordenes))
+    print("▶️ Primera orden:", ordenes[0] if ordenes else "Ninguna")
     return render_template('orders/index.html', ordenes=ordenes)
 
