@@ -19,7 +19,18 @@
             pointer-events: none;
             user-select: none;
         }
+        /* 🔧 Corrige menú lateral para que no flote como dropdown */
+        #accordionSidebar .collapse-inner {
+            position: static !important;
+            box-shadow: none !important;
+            transform: none !important;
+        }
+
+        #accordionSidebar .collapse.show {
+            display: block !important;
+        }
     </style>
+
 </head>
 <body id="page-top" class="loading">
 
@@ -35,6 +46,7 @@
 
 <div id="wrapper">
     {% if session.get('user') %}
+    
     <!-- Sidebar -->
     <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion toggled" id="accordionSidebar">
         <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{{ url_for('home.index') }}">
@@ -51,13 +63,15 @@
             </a>
         </li>
 
+        <!-- Orders como acordeón -->
         <li class="nav-item">
             <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseOrders"
             aria-expanded="true" aria-controls="collapseOrders">
                 <i class="fas fa-fw fa-file-alt"></i>
                 <span>Orders</span>
             </a>
-            <div id="collapseOrders" class="collapse {% if tipo in ['costos', 'logistica'] %}show{% endif %}" aria-labelledby="headingOrders" data-parent="#accordionSidebar">
+            <div id="collapseOrders" class="collapse {% if tipo in ['costos', 'logistica'] %}show{% endif %}"
+                aria-labelledby="headingOrders" data-parent="#accordionSidebar">
                 <div class="bg-white py-2 collapse-inner rounded">
                     <h6 class="collapse-header">Gestión:</h6>
                     <a class="collapse-item {% if tipo == 'costos' %}active{% endif %}" href="{{ url_for('orders_costos.index_costos') }}">📦 Costos</a>
@@ -66,8 +80,6 @@
             </div>
         </li>
 
-
-
         <li class="nav-item">
             <a class="nav-link" href="{{ url_for('auth.logout') }}">
                 <i class="fas fa-sign-out-alt"></i>
@@ -75,6 +87,7 @@
             </a>
         </li>
     </ul>
+
     {% endif %}
 
     <div id="content-wrapper" class="d-flex flex-column">
