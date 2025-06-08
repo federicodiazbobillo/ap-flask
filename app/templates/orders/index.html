@@ -8,6 +8,7 @@
     </a>
 </div>
 
+<!-- Modal de carga -->
 <div class="modal fade" id="modalCargando" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-sm modal-dialog-centered">
     <div class="modal-content text-center p-4">
@@ -23,21 +24,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btn) {
         btn.addEventListener('click', function (e) {
             e.preventDefault();
-            $('#modalCargando').modal('show'); // Mostrar modal inmediatamente
+            $('#modalCargando').modal('show'); // Mostrar modal
 
             fetch('/ordenes/sincronizar')
                 .then(res => res.json())
                 .then(data => {
-                    $('#modalCargando').modal('hide'); // Ocultar modal al terminar
-                    alert(data.message);
+                    $('#modalCargando').modal('hide');
+                    // No alert si fue exitoso
                 })
                 .catch(err => {
                     $('#modalCargando').modal('hide');
-                    alert('❌ Error al sincronizar');
+                    alert('❌ Error al sincronizar órdenes.');
                     console.error(err);
                 });
         });
     }
 });
 </script>
+
 {% endblock %}
