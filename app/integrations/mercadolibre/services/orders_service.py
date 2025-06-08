@@ -36,6 +36,12 @@ def obtener_ordenes(access_token, user_id):
 
     guardar_ordenes_en_db(ordenes)
 
+    # recolectar shipping_ids de todas las órdenes
+    shipping_ids = [orden.get("shipping", {}).get("id") for orden in ordenes if orden.get("shipping")]
+
+    # guardar envíos
+    guardar_envios(shipping_ids, access_token)
+    
     return {
         "error": False,
         "ordenes": ordenes
@@ -105,6 +111,48 @@ def guardar_ordenes_en_db(ordenes):
                 order_id, item_id, seller_sku,
                 quantity, manufacturing_days, sale_fee
             ))
+
+    conn.commit()
+    cursor.close()
+
+
+def guardar_envios(shipping_ids, access_token):
+    if not shipping_ids:
+        return
+
+    conn = get_conn()
+    cursor = conn.cursor()
+
+    url_base = "https://api.mercadolibre.com/shipments/"
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+
+    for shipping_id in set(shipping_ids):
+        if not shipping_id:
+            continue
+
+        url = f"{url_base}{shipping_id}"
+        response = requests.get(url, headers=headers)
+
+        if response.status_code != 200:
+            print(f"❌ Error con shipping_id {shipping_id}: {response.status_code}")
+            continue
+
+        data = response.json()
+        list_cost = data.get("shipping_option", {}).get("list_cost")
+        status = data.get("status")  # Ej: 'shipped', 'delivered'
+
+        if list_cost is None or status is None:
+            continue
+
+        cursor.execute("""
+            INSERT INTO shipments (shipping_id, list_cost, status)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE
+                list_cost = VALUES(list_cost),
+                status = VALUES(status)
+        """, (shipping_id, list_cost, status))
 
     conn.commit()
     cursor.close()
