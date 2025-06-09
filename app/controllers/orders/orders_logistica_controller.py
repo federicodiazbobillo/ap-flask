@@ -30,7 +30,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
         filters.append("DATE(o.manufacturing_ending_date) <= %s")
         params.append(venc_hasta)
 
-    # Base de consulta
+    # Base de consulta incluyendo guía y nota
     base_query = (
         "SELECT o.order_id,"
         " o.pack_id,"
@@ -38,7 +38,9 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
         " o.total_amount,"
         " o.status AS order_status,"
         " o.manufacturing_ending_date,"
-        " s.status AS shipping_status"
+        " s.status AS shipping_status,"
+        " s.guia AS guia,"
+        " s.nota AS nota"
         " FROM orders o"
         " LEFT JOIN shipments s ON o.shipping_id = s.shipping_id"
     )
@@ -55,7 +57,8 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
     # Agrupar registros por reference_id
     groups = {}
     for row in raw:
-        order_id, pack_id, created_at, total_amount, order_status, ending_date, shipping_status = row
+        # Desempaquetar incluyendo guia y nota
+        order_id, pack_id, created_at, total_amount, order_status, ending_date, shipping_status, guia, nota = row
         reference_id = pack_id or order_id
         if reference_id not in groups:
             created_str = created_at.strftime('%d/%m/%Y') if hasattr(created_at, 'strftime') else ''
@@ -67,27 +70,28 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
                     'total_amount': total_amount,
                     'status': order_status,
                     'manufacturing_ending_date': ending_str,
-                    'shipping_status': shipping_status
+                    'shipping_status': shipping_status,
+                    'guia': guia,
+                    'nota': nota
                 },
                 'order_ids': []
             }
         groups[reference_id]['order_ids'].append(order_id)
 
     # Obtener items para todos los order_ids
-    all_ids = [oid for g in groups.values() for oid in g['order_ids']]
     items_map = {}
-    if all_ids:
-        placeholders = ','.join(['%s'] * len(all_ids))
+    if groups:
+        order_ids = [oid for group in groups.values() for oid in group['order_ids']]
+        format_ids = ','.join(['%s'] * len(order_ids))
         cursor.execute(
-            f"SELECT order_id, item_id, seller_sku, quantity"
-            f" FROM order_items WHERE order_id IN ({placeholders})",
-            tuple(all_ids)
+            f"SELECT order_id, item_id, seller_sku, quantity FROM order_items WHERE order_id IN ({format_ids})",
+            tuple(order_ids)
         )
-        for r in cursor.fetchall():
-            items_map.setdefault(r[0], []).append({
-                'item_id': r[1],
-                'seller_sku': r[2],
-                'quantity': r[3]
+        for oid, item_id, sku, qty in cursor.fetchall():
+            items_map.setdefault(oid, []).append({
+                'item_id': item_id,
+                'seller_sku': sku,
+                'quantity': qty
             })
 
     # Construir lista final
