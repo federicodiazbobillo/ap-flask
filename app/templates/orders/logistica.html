@@ -12,12 +12,15 @@
     <h2>Logística</h2>
 
     <!-- Filtros -->
-    <div class="input-group mb-3" style="max-width: 400px;">
-        <input type="number" class="form-control" id="input-order-id-busqueda" placeholder="ID de orden o pack">
-        <div class="input-group-append">
-            <button class="btn btn-outline-info" type="button" id="btn-buscar-id">🔍 Buscar</button>
-            <button class="btn btn-outline-secondary" type="button" id="btn-limpiar-filtros">🧹 Limpiar filtros</button>
+    <div class="d-flex mb-3">
+    <form id="filter-form" class="form-inline" method="get" action="{{ url_for('orders_logistica.search_orders') }}">
+        <div class="form-group mr-2">
+        <label for="filter-id" class="sr-only">ID</label>
+        <input type="text" class="form-control" id="filter-id" name="id" placeholder="Order/Pack ID" value="{{ request.args.get('id', '') }}">
         </div>
+        <button type="submit" class="btn btn-primary mr-2">Filtrar</button>
+        <a href="{{ url_for('orders_logistica.index_logistica') }}" class="btn btn-secondary">Limpiar filtros</a>
+    </form>
     </div>
 
 </div>
