@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, jsonify
 from app.db import get_conn
 from app.utils.filters.query_builder import construir_consulta
-from app.utils.filters.core.filtro_por_id_o_pack import filtro_por_id_o_pack
+#from app.utils.filters.core.filtro_por_id_o_pack import filtro_por_id_o_pack
 
 orders_logistica_bp = Blueprint('orders_logistica', __name__, url_prefix='/orders/logistica')
 
