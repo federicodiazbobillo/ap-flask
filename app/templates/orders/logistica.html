@@ -13,14 +13,16 @@
 
     <!-- Filtros -->
     <div class="d-flex mb-3">
-    <form id="filter-form" class="form-inline" method="get" action="{{ url_for('orders_logistica.search_orders') }}">
-        <div class="form-group mr-2">
-        <label for="filter-id" class="sr-only">ID</label>
-        <input type="text" class="form-control" id="filter-id" name="id" placeholder="Order/Pack ID" value="{{ request.args.get('id', '') }}">
-        </div>
-        <button type="submit" class="btn btn-primary mr-2">Filtrar</button>
-        <a href="{{ url_for('orders_logistica.index_logistica') }}" class="btn btn-secondary">Limpiar filtros</a>
-    </form>
+<form id="filter-form" class="form-inline mb-3" method="get" 
+      action="{{ url_for('orders_logistica.index_logistica') }}">
+  <div class="form-group mr-2">
+    <input type="text" class="form-control" name="id" placeholder="Order/Pack ID"
+           value="{{ filtro_id or '' }}">
+  </div>
+  <button type="submit" class="btn btn-primary mr-2">Filtrar</button>
+  <a href="{{ url_for('orders_logistica.index_logistica') }}" class="btn btn-secondary">Limpiar filtros</a>
+</form>
+
     </div>
 
 </div>
