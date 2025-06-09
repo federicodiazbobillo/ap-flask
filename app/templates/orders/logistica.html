@@ -16,26 +16,35 @@
       <input type="text" class="form-control" name="id" placeholder="ID de orden o pack" value="{{ filtro_id or '' }}">
     </div>
     <div class="form-group mb-2 mr-2">
-      <label for="fecha-desde" class="sr-only">Desde</label>
-      <input type="date" class="form-control" id="fecha-desde" name="fecha_desde" value="{{ filtro_fecha_desde or '' }}">
+      <label for="fecha-desde" class="sr-only">Creación desde</label>
+      <input type="date" class="form-control" id="fecha-desde" name="fecha_desde" value="{{ filtro_fecha_desde or '' }}" placeholder="Creación desde">
     </div>
     <div class="form-group mb-2 mr-2">
-      <label for="fecha-hasta" class="sr-only">Hasta</label>
-      <input type="date" class="form-control" id="fecha-hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta or '' }}">
+      <label for="fecha-hasta" class="sr-only">Creación hasta</label>
+      <input type="date" class="form-control" id="fecha-hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta or '' }}" placeholder="Creación hasta">
+    </div>
+    <div class="form-group mb-2 mr-2">
+      <label for="venc-desde" class="sr-only">Vencimiento desde</label>
+      <input type="date" class="form-control" id="venc-desde" name="venc_desde" value="{{ filtro_venc_desde or '' }}" placeholder="Vencimiento desde">
+    </div>
+    <div class="form-group mb-2 mr-2">
+      <label for="venc-hasta" class="sr-only">Vencimiento hasta</label>
+      <input type="date" class="form-control" id="venc-hasta" name="venc_hasta" value="{{ filtro_venc_hasta or '' }}" placeholder="Vencimiento hasta">
     </div>
     <button type="submit" class="btn btn-outline-info mb-2">🔍 Buscar</button>
     <a href="{{ url_for('orders_logistica.index_logistica') }}" class="btn btn-outline-secondary mb-2">🧹 Limpiar filtros</a>
   </form>
 </div>
 
-<div class="table-responsive">
-    <p><strong>Total de registros:</strong> {{ ordenes|length }}</p>
+{# Mostrar total de registros #}
+<p><strong>Total de registros:</strong> {{ ordenes|length }}</p>
 
+<div class="table-responsive">
   <table class="table table-bordered table-striped table-hover nowrap w-100" id="tabla-logistica">
     <thead class="thead-dark">
       <tr>
         <th>ID Orden</th>
-        <th>Fecha</th>
+        <th>Creación</th>
         <th>Vencimiento</th>
         <th>Estado / Envío</th>
         <th>Items</th>
@@ -86,5 +95,4 @@
   </table>
 </div>
 
-<!--script src="{{ url_for('static', filename='js/filtros_aplicados/logistica_filtros.js') }}"></script-->
 {% endblock %}

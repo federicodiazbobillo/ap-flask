@@ -3,10 +3,10 @@ from app.db import get_conn
 
 orders_logistica_bp = Blueprint('orders_logistica', __name__, url_prefix='/orders/logistica')
 
-def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
+def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=None, venc_hasta=None):
     """
-    Función interna para obtener órdenes con filtros de ID y rango de fechas (inclusive),
-    agrupar por pack_id (o order_id si pack_id es null) y normalizar datos.
+    Obtiene órdenes con filtros de ID, rango de creación y rango de vencimiento (inclusive),
+    agrupa por pack_id (o order_id si pack_id es null) y normaliza datos.
     """
     conn = get_conn()
     cursor = conn.cursor()
@@ -23,8 +23,14 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
     if fecha_hasta:
         filters.append("DATE(o.created_at) <= %s")
         params.append(fecha_hasta)
+    if venc_desde:
+        filters.append("DATE(o.manufacturing_ending_date) >= %s")
+        params.append(venc_desde)
+    if venc_hasta:
+        filters.append("DATE(o.manufacturing_ending_date) <= %s")
+        params.append(venc_hasta)
 
-    # Consulta base con JOIN para estado de envío
+    # Base de consulta
     base_query = (
         "SELECT o.order_id,"
         " o.pack_id,"
@@ -36,19 +42,18 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
         " FROM orders o"
         " LEFT JOIN shipments s ON o.shipping_id = s.shipping_id"
     )
+    # Agregar WHERE si hay filtros
     if filters:
         base_query += " WHERE " + " AND ".join(filters)
+        base_query += " ORDER BY o.created_at DESC"
     else:
         base_query += " ORDER BY o.created_at DESC LIMIT 50"
-    # Si hay filtros, ordenar sin límite
-    if filters:
-        base_query += " ORDER BY o.created_at DESC"
 
     cursor.execute(base_query, tuple(params) if params else None)
     raw = cursor.fetchall()
 
-    # Agrupar registros por reference_id = pack_id o order_id
-    groups = {}  # reference_id -> {'meta': {...}, 'order_ids': []}
+    # Agrupar registros por reference_id
+    groups = {}
     for row in raw:
         order_id, pack_id, created_at, total_amount, order_status, ending_date, shipping_status = row
         reference_id = pack_id or order_id
@@ -68,7 +73,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
             }
         groups[reference_id]['order_ids'].append(order_id)
 
-    # Obtener items relacionados para todos los order_ids
+    # Obtener items para todos los order_ids
     all_ids = [oid for g in groups.values() for oid in g['order_ids']]
     items_map = {}
     if all_ids:
@@ -85,11 +90,10 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
                 'quantity': r[3]
             })
 
-    # Construir lista final con items agrupados
+    # Construir lista final
     orders = []
-    for gid, group in groups.items():
+    for group in groups.values():
         meta = group['meta']
-        # Consolidar todos los items de los order_ids del grupo
         items = []
         for oid in group['order_ids']:
             items.extend(items_map.get(oid, []))
@@ -102,19 +106,23 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
 @orders_logistica_bp.route('/')
 def index_logistica():
     """
-    Vista HTML de logística con filtros y agrupación por pack.
+    Vista HTML de logística con filtros por ID, creación y vencimiento.
     """
     id_param = request.args.get('id')
     fecha_desde = request.args.get('fecha_desde')
     fecha_hasta = request.args.get('fecha_hasta')
-    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta)
+    venc_desde = request.args.get('venc_desde')
+    venc_hasta = request.args.get('venc_hasta')
+    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta)
     return render_template(
         'orders/logistica.html',
         ordenes=orders,
         tipo='logistica',
         filtro_id=id_param,
         filtro_fecha_desde=fecha_desde,
-        filtro_fecha_hasta=fecha_hasta
+        filtro_fecha_hasta=fecha_hasta,
+        filtro_venc_desde=venc_desde,
+        filtro_venc_hasta=venc_hasta
     )
 
 @orders_logistica_bp.route('/search')
@@ -125,5 +133,7 @@ def search_logistica():
     id_param = request.args.get('id')
     fecha_desde = request.args.get('fecha_desde')
     fecha_hasta = request.args.get('fecha_hasta')
-    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta)
+    venc_desde = request.args.get('venc_desde')
+    venc_hasta = request.args.get('venc_hasta')
+    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta)
     return jsonify({'orders': orders})
