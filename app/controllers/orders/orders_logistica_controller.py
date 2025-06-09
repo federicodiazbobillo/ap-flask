@@ -66,45 +66,94 @@ def buscar_order_logistica():
     cursor = conn.cursor()
 
     valor = request.args.get('id')
-    if not valor:
-        return jsonify({'error': 'Falta el parámetro id'}), 400
 
+    if valor:
+        cursor.execute("""
+            SELECT o.order_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
+            FROM orders o
+            LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
+            WHERE o.order_id = %s OR o.pack_id = %s
+            LIMIT 1
+        """, (valor, valor))
+        row = cursor.fetchone()
+
+        if not row:
+            return jsonify({'mensaje': 'No se encontró la orden'}), 404
+
+        orden = {
+            'order_id': row[0],
+            'created_at': row[1],
+            'total_amount': row[2],
+            'status': row[3],
+            'shipping_id': row[4],
+            'shipping': {'list_cost': row[5]},
+        }
+
+        cursor.execute("""
+            SELECT order_id, item_id, seller_sku, quantity, manufacturing_days, sale_fee
+            FROM order_items WHERE order_id = %s
+        """, (orden['order_id'],))
+        orden['items'] = [
+            {
+                'order_id': r[0],
+                'item_id': r[1],
+                'seller_sku': r[2],
+                'quantity': r[3],
+                'manufacturing_days': r[4],
+                'sale_fee': r[5],
+            }
+            for r in cursor.fetchall()
+        ]
+
+        cursor.close()
+        return jsonify({'order': orden})
+
+    # Si no hay filtro, devolver las últimas 50 órdenes
     cursor.execute("""
         SELECT o.order_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
         FROM orders o
         LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
-        WHERE o.order_id = %s OR o.pack_id = %s
-        LIMIT 1
-    """, (valor, valor))
-    row = cursor.fetchone()
+        ORDER BY o.created_at DESC
+        LIMIT 50
+    """)
+    raw_ordenes = cursor.fetchall()
 
-    if not row:
-        return jsonify({'mensaje': 'No se encontró la orden'}), 404
+    ordenes = []
+    orden_ids = []
 
-    orden = {
-        'order_id': row[0],
-        'created_at': row[1],
-        'total_amount': row[2],
-        'status': row[3],
-        'shipping_id': row[4],
-        'shipping': {'list_cost': row[5]},
-    }
-
-    cursor.execute("""
-        SELECT order_id, item_id, seller_sku, quantity, manufacturing_days, sale_fee
-        FROM order_items WHERE order_id = %s
-    """, (orden['order_id'],))
-    orden['items'] = [
-        {
-            'order_id': r[0],
-            'item_id': r[1],
-            'seller_sku': r[2],
-            'quantity': r[3],
-            'manufacturing_days': r[4],
-            'sale_fee': r[5],
+    for row in raw_ordenes:
+        orden = {
+            'order_id': row[0],
+            'created_at': row[1],
+            'total_amount': row[2],
+            'status': row[3],
+            'shipping_id': row[4],
+            'shipping': {'list_cost': row[5]},
         }
-        for r in cursor.fetchall()
-    ]
+        ordenes.append(orden)
+        orden_ids.append(row[0])
+
+    items_map = {}
+    if orden_ids:
+        format_strings = ','.join(['%s'] * len(orden_ids))
+        cursor.execute(f"""
+            SELECT order_id, item_id, seller_sku, quantity, manufacturing_days, sale_fee
+            FROM order_items
+            WHERE order_id IN ({format_strings})
+        """, tuple(orden_ids))
+        for row in cursor.fetchall():
+            item = {
+                'order_id': row[0],
+                'item_id': row[1],
+                'seller_sku': row[2],
+                'quantity': row[3],
+                'manufacturing_days': row[4],
+                'sale_fee': row[5],
+            }
+            items_map.setdefault(row[0], []).append(item)
+
+    for orden in ordenes:
+        orden['items'] = items_map.get(orden['order_id'], [])
 
     cursor.close()
-    return jsonify({'order': orden})
+    return jsonify({'ordenes': ordenes})
