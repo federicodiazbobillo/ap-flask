@@ -1,5 +1,5 @@
+from flask import Blueprint, render_template, jsonify, request
 from datetime import datetime, timedelta
-from flask import Blueprint, jsonify, request
 from app.db import get_conn
 from app.integrations.mercadolibre.services.token_service import verificar_meli
 from app.integrations.mercadolibre.services.orders_service import (
@@ -9,6 +9,10 @@ from app.integrations.mercadolibre.services.orders_service import (
 )
 
 sync_mercadolibre_bp = Blueprint('sync_mercadolibre', __name__, url_prefix='/sync/mercadolibre')
+
+@sync_mercadolibre_bp.route('/')
+def index():
+    return render_template('sync/sync_mercadolibre.html')
 
 @sync_mercadolibre_bp.route('/sync')
 def sync_orders():
