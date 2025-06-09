@@ -5,7 +5,7 @@ orders_logistica_bp = Blueprint('orders_logistica', __name__, url_prefix='/order
 
 def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
     """
-    Función interna para obtener órdenes con filtros de ID y rango de fechas, junto con datos normalizados.
+    Función interna para obtener órdenes con filtros de ID y rango de fechas (inclusive), junto con datos normalizados.
     """
     conn = get_conn()
     cursor = conn.cursor()
@@ -13,33 +13,35 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
     # Construir condiciones de filtro
     filters = []
     params = []
-    # Filtro por order_id o pack_id
     if id_param:
         filters.append("(o.order_id = %s OR o.pack_id = %s)")
         params.extend([id_param, id_param])
-    # Filtro por rango de fechas de creación
     if fecha_desde:
-        filters.append("o.created_at >= %s")
+        filters.append("DATE(o.created_at) >= %s")
         params.append(fecha_desde)
     if fecha_hasta:
-        filters.append("o.created_at <= %s")
+        filters.append("DATE(o.created_at) <= %s")
         params.append(fecha_hasta)
 
-    # Consulta principal con JOIN para estado de envío
-    base_query = """
-        SELECT o.order_id,
-               o.pack_id,
-               o.created_at,
-               o.total_amount,
-               o.status               AS order_status,
-               o.manufacturing_ending_date,
-               s.status               AS shipping_status
-        FROM orders o
-        LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
-    """
+    # Consulta base con JOIN para estado de envío
+    base_query = (
+        "SELECT o.order_id,"
+        " o.pack_id,"
+        " o.created_at,"
+        " o.total_amount,"
+        " o.status AS order_status,"
+        " o.manufacturing_ending_date,"
+        " s.status AS shipping_status"
+        " FROM orders o"
+        " LEFT JOIN shipments s ON o.shipping_id = s.shipping_id"
+    )
+
+    # Orden y límite: solo limitar si no hay filtros
     if filters:
         base_query += " WHERE " + " AND ".join(filters)
-    base_query += " ORDER BY o.created_at DESC LIMIT 50"
+        base_query += " ORDER BY o.created_at DESC"
+    else:
+        base_query += " ORDER BY o.created_at DESC LIMIT 50"
 
     cursor.execute(base_query, tuple(params) if params else None)
     raw_orders = cursor.fetchall()
@@ -64,15 +66,15 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
         })
         order_ids.append(order_id)
 
-    # Obtener items relacionados (sólo campos necesarios)
+    # Obtener items relacionados (solo campos necesarios)
     items_map = {}
     if order_ids:
         placeholders = ','.join(['%s'] * len(order_ids))
-        cursor.execute(f"""
-            SELECT order_id, item_id, seller_sku, quantity
-            FROM order_items
-            WHERE order_id IN ({placeholders})
-        """, tuple(order_ids))
+        cursor.execute(
+            f"SELECT order_id, item_id, seller_sku, quantity"
+            f" FROM order_items WHERE order_id IN ({placeholders})",
+            tuple(order_ids)
+        )
         for r in cursor.fetchall():
             items_map.setdefault(r[0], []).append({
                 'order_id':   r[0],
