@@ -11,7 +11,7 @@ from app.integrations.mercadolibre.services.orders_service import (
 sync_mercadolibre_bp = Blueprint('sync_mercadolibre', __name__, url_prefix='/sync/mercadolibre')
 
 @sync_mercadolibre_bp.route('/')
-def index():
+def index(): 
     return render_template('sync/sync_mercadolibre.html')
 
 @sync_mercadolibre_bp.route('/sync')
