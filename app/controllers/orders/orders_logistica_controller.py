@@ -40,7 +40,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
         " o.manufacturing_ending_date,"
         " s.status AS shipping_status,"
         " o.guia AS guia,"
-        " o.nota AS nota"
+        " o.notas AS nota"
         " FROM orders o"
         " LEFT JOIN shipments s ON o.shipping_id = s.shipping_id"
     )
