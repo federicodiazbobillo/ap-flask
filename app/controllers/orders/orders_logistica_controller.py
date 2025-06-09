@@ -21,21 +21,29 @@ def index_logistica():
     orders = []
     order_ids = []
 
-    # Construir lista de órdenes con reference_id
+    # Construir lista de órdenes con reference_id y formatear fechas
     for row in raw_orders:
         order_id = row[0]
         pack_id = row[1]
         reference_id = pack_id if pack_id is not None else order_id
-        # Manejar campo que puede ser NULL
-        ending_date = row[5] if row[5] is not None else ''
+
+        # Formatear created_at y manufacturing_ending_date
+        created_at = row[2]
+        created_str = created_at.strftime('%d/%m/%Y') if created_at else ''
+        ending_date = row[5]
+        if ending_date:
+            ending_str = ending_date.strftime('%d/%m/%Y')
+        else:
+            ending_str = 'Entrega inmediata'
+
         order = {
             'order_id': order_id,
             'pack_id': pack_id,
             'reference_id': reference_id,
-            'created_at': row[2],
+            'created_at': created_str,
             'total_amount': row[3],
             'status': row[4],
-            'manufacturing_ending_date': ending_date,
+            'manufacturing_ending_date': ending_str,
         }
         orders.append(order)
         order_ids.append(order_id)
@@ -93,15 +101,24 @@ def search_orders():
         order_id = row[0]
         pack_id = row[1]
         reference_id = pack_id if pack_id is not None else order_id
-        ending_date = row[5] if row[5] is not None else ''
+
+        # Formatear fechas
+        created_at = row[2]
+        created_str = created_at.strftime('%d/%m/%Y') if created_at else ''
+        ending_date = row[5]
+        if ending_date:
+            ending_str = ending_date.strftime('%d/%m/%Y')
+        else:
+            ending_str = 'Entrega inmediata'
+
         order = {
             'order_id': order_id,
             'pack_id': pack_id,
             'reference_id': reference_id,
-            'created_at': row[2],
+            'created_at': created_str,
             'total_amount': row[3],
             'status': row[4],
-            'manufacturing_ending_date': ending_date,
+            'manufacturing_ending_date': ending_str,
         }
 
         # Items para la orden específica
@@ -141,15 +158,24 @@ def search_orders():
         order_id = row[0]
         pack_id = row[1]
         reference_id = pack_id if pack_id is not None else order_id
-        ending_date = row[5] if row[5] is not None else ''
+
+        # Formatear fechas
+        created_at = row[2]
+        created_str = created_at.strftime('%d/%m/%Y') if created_at else ''
+        ending_date = row[5]
+        if ending_date:
+            ending_str = ending_date.strftime('%d/%m/%Y')
+        else:
+            ending_str = 'Entrega inmediata'
+
         order = {
             'order_id': order_id,
             'pack_id': pack_id,
             'reference_id': reference_id,
-            'created_at': row[2],
+            'created_at': created_str,
             'total_amount': row[3],
             'status': row[4],
-            'manufacturing_ending_date': ending_date,
+            'manufacturing_ending_date': ending_str,
         }
         orders.append(order)
         order_ids.append(order_id)
