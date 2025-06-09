@@ -3,9 +3,9 @@ from app.db import get_conn
 
 orders_logistica_bp = Blueprint('orders_logistica', __name__, url_prefix='/orders/logistica')
 
-def _fetch_orders(id_param=None):
+def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
     """
-    Función interna para obtener órdenes con filtros y datos asociados.
+    Función interna para obtener órdenes con filtros de ID y rango de fechas, junto con datos normalizados.
     """
     conn = get_conn()
     cursor = conn.cursor()
@@ -13,11 +13,19 @@ def _fetch_orders(id_param=None):
     # Construir condiciones de filtro
     filters = []
     params = []
+    # Filtro por order_id o pack_id
     if id_param:
         filters.append("(o.order_id = %s OR o.pack_id = %s)")
         params.extend([id_param, id_param])
+    # Filtro por rango de fechas de creación
+    if fecha_desde:
+        filters.append("o.created_at >= %s")
+        params.append(fecha_desde)
+    if fecha_hasta:
+        filters.append("o.created_at <= %s")
+        params.append(fecha_hasta)
 
-    # Consulta principal
+    # Consulta principal con JOIN para estado de envío
     base_query = """
         SELECT o.order_id,
                o.pack_id,
@@ -36,6 +44,7 @@ def _fetch_orders(id_param=None):
     cursor.execute(base_query, tuple(params) if params else None)
     raw_orders = cursor.fetchall()
 
+    # Normalizar resultados
     orders = []
     order_ids = []
     for row in raw_orders:
@@ -55,7 +64,7 @@ def _fetch_orders(id_param=None):
         })
         order_ids.append(order_id)
 
-    # Obtener items relacionados
+    # Obtener items relacionados (sólo campos necesarios)
     items_map = {}
     if order_ids:
         placeholders = ','.join(['%s'] * len(order_ids))
@@ -82,22 +91,28 @@ def _fetch_orders(id_param=None):
 @orders_logistica_bp.route('/')
 def index_logistica():
     """
-    Vista HTML de logística con filtros.
+    Vista HTML de logística con filtros por ID y rango de fechas.
     """
     id_param = request.args.get('id')
-    orders = _fetch_orders(id_param)
+    fecha_desde = request.args.get('fecha_desde')
+    fecha_hasta = request.args.get('fecha_hasta')
+    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta)
     return render_template(
         'orders/logistica.html',
         ordenes=orders,
         tipo='logistica',
-        filtro_id=id_param
+        filtro_id=id_param,
+        filtro_fecha_desde=fecha_desde,
+        filtro_fecha_hasta=fecha_hasta
     )
 
 @orders_logistica_bp.route('/search')
 def search_logistica():
     """
-    Endpoint JSON para búsqueda de órdenes (AJAX).
+    Endpoint JSON para búsqueda de órdenes con filtros de ID y rango de fechas (AJAX).
     """
     id_param = request.args.get('id')
-    orders = _fetch_orders(id_param)
+    fecha_desde = request.args.get('fecha_desde')
+    fecha_hasta = request.args.get('fecha_hasta')
+    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta)
     return jsonify({'orders': orders})

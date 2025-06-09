@@ -12,13 +12,19 @@
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h2>Logística</h2>
   <form class="form-inline" method="get" action="{{ url_for('orders_logistica.index_logistica') }}">
-    <div class="input-group mb-3" style="max-width: 400px;">
+    <div class="input-group mb-2 mr-2">
       <input type="text" class="form-control" name="id" placeholder="ID de orden o pack" value="{{ filtro_id or '' }}">
-      <div class="input-group-append">
-        <button class="btn btn-outline-info" type="submit">🔍 Buscar</button>
-        <a href="{{ url_for('orders_logistica.index_logistica') }}" class="btn btn-outline-secondary">🧹 Limpiar filtros</a>
-      </div>
     </div>
+    <div class="form-group mb-2 mr-2">
+      <label for="fecha-desde" class="sr-only">Desde</label>
+      <input type="date" class="form-control" id="fecha-desde" name="fecha_desde" value="{{ filtro_fecha_desde or '' }}">
+    </div>
+    <div class="form-group mb-2 mr-2">
+      <label for="fecha-hasta" class="sr-only">Hasta</label>
+      <input type="date" class="form-control" id="fecha-hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta or '' }}">
+    </div>
+    <button type="submit" class="btn btn-outline-info mb-2">🔍 Buscar</button>
+    <a href="{{ url_for('orders_logistica.index_logistica') }}" class="btn btn-outline-secondary mb-2">🧹 Limpiar filtros</a>
   </form>
 </div>
 
