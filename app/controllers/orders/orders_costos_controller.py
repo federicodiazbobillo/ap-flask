@@ -11,7 +11,7 @@ def index_costos():
     conn = get_conn()
     cursor = conn.cursor()
 
-    # Load latest 50 orders
+    # Load last 50 orders
     cursor.execute("""
         SELECT o.order_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
         FROM orders o
@@ -44,23 +44,23 @@ def index_costos():
             FROM order_items
             WHERE order_id IN ({placeholders})
         """, tuple(order_ids))
-        for row in cursor.fetchall():
+        for r in cursor.fetchall():
             item = {
-                'order_id':           row[0],
-                'item_id':            row[1],
-                'seller_sku':         row[2],
-                'quantity':           row[3],
-                'manufacturing_days': row[4],
-                'sale_fee':           row[5],
+                'order_id':           r[0],
+                'item_id':            r[1],
+                'seller_sku':         r[2],
+                'quantity':           r[3],
+                'manufacturing_days': r[4],
+                'sale_fee':           r[5],
             }
-            items_map.setdefault(row[0], []).append(item)
+            items_map.setdefault(r[0], []).append(item)
 
     # Attach items to each order
     for order in orders:
         order['items'] = items_map.get(order['order_id'], [])
 
     cursor.close()
-    return render_template('orders/costos.html', orders=orders, tipo='costos')
+    return render_template('orders/costos.html', ordenes=orders, tipo='costos')
 
 
 @orders_costos_bp.route('/search')
@@ -69,8 +69,9 @@ def search_costos():
     cursor = conn.cursor()
 
     order_id = request.args.get('id')
+
     if order_id:
-        # Search for a single order by order_id or pack_id
+        # Search single order by order_id or pack_id
         cursor.execute("""
             SELECT o.order_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
             FROM orders o
@@ -115,7 +116,7 @@ def search_costos():
         cursor.close()
         return jsonify({'orders': [order]})
 
-    # No 'id' parameter: fall back to last 50 orders
+    # No filter: return last 50 orders
     cursor.execute("""
         SELECT o.order_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
         FROM orders o
@@ -139,7 +140,7 @@ def search_costos():
         orders.append(order)
         order_ids.append(row[0])
 
-    # Load items
+    # Load items for all
     items_map = {}
     if order_ids:
         placeholders = ','.join(['%s'] * len(order_ids))
@@ -148,16 +149,16 @@ def search_costos():
             FROM order_items
             WHERE order_id IN ({placeholders})
         """, tuple(order_ids))
-        for row in cursor.fetchall():
+        for r in cursor.fetchall():
             item = {
-                'order_id':           row[0],
-                'item_id':            row[1],
-                'seller_sku':         row[2],
-                'quantity':           row[3],
-                'manufacturing_days': row[4],
-                'sale_fee':           row[5],
+                'order_id':           r[0],
+                'item_id':            r[1],
+                'seller_sku':         r[2],
+                'quantity':           r[3],
+                'manufacturing_days': r[4],
+                'sale_fee':           r[5],
             }
-            items_map.setdefault(row[0], []).append(item)
+            items_map.setdefault(r[0], []).append(item)
 
     for order in orders:
         order['items'] = items_map.get(order['order_id'], [])
