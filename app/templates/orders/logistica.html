@@ -62,7 +62,7 @@
                             <tr>
                                 <td>{{ item.item_id }}</td>
                                 <td>{{ item.seller_sku or '-' }}</td>
-                                <td>{{ item.quantity }}</td>
+                                <td><span class="{% if item.quantity > 1 %}font-weight-bold text-danger{% endif %}">{{ item.quantity }}</span></td>
                             </tr>
                             {% endfor %}
                         </tbody>
