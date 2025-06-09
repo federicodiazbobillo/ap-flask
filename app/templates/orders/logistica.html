@@ -46,7 +46,7 @@
                         Entrega inmediata
                     {% endif %}
                 </td>                
-                <td>{{ orden.status }}</td>
+                <td>{{ orden.status }} / {{ orden.shipping_status }}</td>
                 <td>
                     {% if orden['items'] %}
                     <table class="table table-sm table-bordered mb-0">
