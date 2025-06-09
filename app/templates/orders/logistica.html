@@ -5,79 +5,78 @@
   /* Aplica sólo a la tabla de logística */
   #tabla-logistica {
     width: 100%;
-    font-size: 0.8rem;  /* prueba 0.9rem, 0.8rem… hasta que te guste */
+    font-size: 0.8rem;
   }
 </style>
+
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-    <h2>Logística</h2>
-
-    <!-- Filtros -->
+  <h2>Logística</h2>
+  <form class="form-inline" method="get" action="{{ url_for('orders_logistica.index_logistica') }}">
     <div class="input-group mb-3" style="max-width: 400px;">
-        <input type="number" class="form-control" id="input-order-id-busqueda" placeholder="ID de orden o pack">
-        <div class="input-group-append">
-            <button class="btn btn-outline-info" type="button" id="btn-buscar-id">🔍 Buscar</button>
-            <button class="btn btn-outline-secondary" type="button" id="btn-limpiar-filtros">🧹 Limpiar filtros</button>
-        </div>
+      <input type="text" class="form-control" name="id" placeholder="ID de orden o pack" value="{{ filtro_id or '' }}">
+      <div class="input-group-append">
+        <button class="btn btn-outline-info" type="submit">🔍 Buscar</button>
+        <a href="{{ url_for('orders_logistica.index_logistica') }}" class="btn btn-outline-secondary">🧹 Limpiar filtros</a>
+      </div>
     </div>
-
+  </form>
 </div>
 
-<!-- Tabla de órdenes -->
 <div class="table-responsive">
-    <table class="table table-bordered table-striped table-hover nowrap w-100" id="tabla-logistica">
-        <thead class="thead-dark">
-            <tr>
-                <th>ID Orden</th>
-                <th>Fecha</th>
-                <th>Vencimiento</th>
-                <th>Estado</th>               
-                <th>Items</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for orden in ordenes %}
-            <tr>
-                <td>{{ orden.reference_id }}</td>
-                <td>{{ orden.created_at }}</td>
+  <table class="table table-bordered table-striped table-hover nowrap w-100" id="tabla-logistica">
+    <thead class="thead-dark">
+      <tr>
+        <th>ID Orden</th>
+        <th>Fecha</th>
+        <th>Vencimiento</th>
+        <th>Estado / Envío</th>
+        <th>Items</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for orden in ordenes %}
+      <tr>
+        <td>{{ orden.reference_id }}</td>
+        <td>{{ orden.created_at }}</td>
+        <td>
+          {% if orden.manufacturing_ending_date != 'Entrega inmediata' %}
+            {{ orden.manufacturing_ending_date }}
+          {% else %}
+            Entrega inmediata
+          {% endif %}
+        </td>
+        <td>{{ orden.status }} / {{ orden.shipping_status }}</td>
+        <td>
+          {% if orden.items %}
+          <table class="table table-sm table-bordered mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th>ID</th>
+                <th>SKU</th>
+                <th>Cant.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in orden.items %}
+              <tr>
+                <td>{{ item.item_id }}</td>
+                <td>{{ item.seller_sku or '-' }}</td>
                 <td>
-                    {% if orden.manufacturing_ending_date != 'Entrega inmediata' %}
-                        {{ orden.manufacturing_ending_date }}
-                    {% else %}
-                        Entrega inmediata
-                    {% endif %}
-                </td>                
-                <td>{{ orden.status }} / {{ orden.shipping_status }}</td>
-                <td>
-                    {% if orden['items'] %}
-                    <table class="table table-sm table-bordered mb-0">
-                        <thead class="bg-light">
-                            <tr>
-                                <th>ID</th>
-                                <th>SKU</th>
-                                <th>Cant.</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in orden['items'] %}
-                            <tr>
-                                <td>{{ item.item_id }}</td>
-                                <td>{{ item.seller_sku or '-' }}</td>
-                                <td><span class="{% if item.quantity > 1 %}font-weight-bold text-danger{% endif %}">{{ item.quantity }}</span></td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                    {% else %}
-                        -
-                    {% endif %}
+                  <span class="{% if item.quantity > 1 %}font-weight-bold text-danger{% endif %}">{{ item.quantity }}</span>
                 </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+            -
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
-
 
 <script src="{{ url_for('static', filename='js/filtros_aplicados/logistica_filtros.js') }}"></script>
-
 {% endblock %}
