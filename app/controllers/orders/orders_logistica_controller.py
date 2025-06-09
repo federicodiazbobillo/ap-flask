@@ -16,13 +16,13 @@ def index_logistica():
         ORDER BY o.created_at DESC
         LIMIT 50
     """)
-    raw_ordenes = cursor.fetchall()
+    raw_orders = cursor.fetchall()
 
-    ordenes = []
-    orden_ids = []
+    orders = []
+    order_ids = []
 
-    for row in raw_ordenes:
-        orden = {
+    for row in raw_orders:
+        order = {
             'order_id': row[0],
             'created_at': row[1],
             'total_amount': row[2],
@@ -30,18 +30,17 @@ def index_logistica():
             'shipping_id': row[4],
             'shipping': {'list_cost': row[5]},
         }
-        ordenes.append(orden)
-        orden_ids.append(row[0])
+        orders.append(order)
+        order_ids.append(row[0])
 
-    # Cargar ítems
     items_map = {}
-    if orden_ids:
-        format_strings = ','.join(['%s'] * len(orden_ids))
+    if order_ids:
+        format_strings = ','.join(['%s'] * len(order_ids))
         cursor.execute(f"""
             SELECT order_id, item_id, seller_sku, quantity, manufacturing_days, sale_fee
             FROM order_items
             WHERE order_id IN ({format_strings})
-        """, tuple(orden_ids))
+        """, tuple(order_ids))
         for row in cursor.fetchall():
             item = {
                 'order_id': row[0],
@@ -53,34 +52,34 @@ def index_logistica():
             }
             items_map.setdefault(row[0], []).append(item)
 
-    for orden in ordenes:
-        orden['items'] = items_map.get(orden['order_id'], [])
+    for order in orders:
+        order['items'] = items_map.get(order['order_id'], [])
 
     cursor.close()
-    return render_template('orders/logistica.html', ordenes=ordenes, tipo='logistica')
+    return render_template('orders/logistica.html', ordenes=orders, tipo='logistica')
 
 
-@orders_logistica_bp.route('/buscar')
-def buscar_order_logistica():
+@orders_logistica_bp.route('/search')
+def search_orders():
     conn = get_conn()
     cursor = conn.cursor()
 
-    valor = request.args.get('id')
+    order_id = request.args.get('id')
 
-    if valor:
+    if order_id:
         cursor.execute("""
             SELECT o.order_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
             FROM orders o
             LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
             WHERE o.order_id = %s OR o.pack_id = %s
             LIMIT 1
-        """, (valor, valor))
+        """, (order_id, order_id))
         row = cursor.fetchone()
 
         if not row:
-            return jsonify({'mensaje': 'No se encontró la orden'}), 404
+            return jsonify({'message': 'Order not found'}), 404
 
-        orden = {
+        order = {
             'order_id': row[0],
             'created_at': row[1],
             'total_amount': row[2],
@@ -92,8 +91,8 @@ def buscar_order_logistica():
         cursor.execute("""
             SELECT order_id, item_id, seller_sku, quantity, manufacturing_days, sale_fee
             FROM order_items WHERE order_id = %s
-        """, (orden['order_id'],))
-        orden['items'] = [
+        """, (order['order_id'],))
+        order['items'] = [
             {
                 'order_id': r[0],
                 'item_id': r[1],
@@ -106,9 +105,9 @@ def buscar_order_logistica():
         ]
 
         cursor.close()
-        return jsonify({'order': orden})
+        return jsonify({'orders': [order]})
 
-    # Si no hay filtro, devolver las últimas 50 órdenes
+    # No filters: return last 50 orders
     cursor.execute("""
         SELECT o.order_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
         FROM orders o
@@ -116,13 +115,13 @@ def buscar_order_logistica():
         ORDER BY o.created_at DESC
         LIMIT 50
     """)
-    raw_ordenes = cursor.fetchall()
+    raw_orders = cursor.fetchall()
 
-    ordenes = []
-    orden_ids = []
+    orders = []
+    order_ids = []
 
-    for row in raw_ordenes:
-        orden = {
+    for row in raw_orders:
+        order = {
             'order_id': row[0],
             'created_at': row[1],
             'total_amount': row[2],
@@ -130,17 +129,17 @@ def buscar_order_logistica():
             'shipping_id': row[4],
             'shipping': {'list_cost': row[5]},
         }
-        ordenes.append(orden)
-        orden_ids.append(row[0])
+        orders.append(order)
+        order_ids.append(row[0])
 
     items_map = {}
-    if orden_ids:
-        format_strings = ','.join(['%s'] * len(orden_ids))
+    if order_ids:
+        format_strings = ','.join(['%s'] * len(order_ids))
         cursor.execute(f"""
             SELECT order_id, item_id, seller_sku, quantity, manufacturing_days, sale_fee
             FROM order_items
             WHERE order_id IN ({format_strings})
-        """, tuple(orden_ids))
+        """, tuple(order_ids))
         for row in cursor.fetchall():
             item = {
                 'order_id': row[0],
@@ -152,8 +151,8 @@ def buscar_order_logistica():
             }
             items_map.setdefault(row[0], []).append(item)
 
-    for orden in ordenes:
-        orden['items'] = items_map.get(orden['order_id'], [])
+    for order in orders:
+        order['items'] = items_map.get(order['order_id'], [])
 
     cursor.close()
-    return jsonify({'ordenes': ordenes})
+    return jsonify({'orders': orders})
