@@ -4,10 +4,17 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2>Logistica</h2>
+    
+    <div class="input-group mb-3" style="max-width: 400px;">
+        <input type="number" class="form-control" id="input-order-id" placeholder="ID de orden o pack">
+        <button class="btn btn-outline-info" type="button" id="btn-sincronizar-id">🔍 Buscar orden</button>
+    </div>
+    
     <div class="input-group mb-3" style="max-width: 400px;">
         <input type="text" class="form-control" id="input-order-id" placeholder="ID de orden específica">
         <button class="btn btn-outline-info" type="button" id="btn-sincronizar-id">🔍 Sincronizar ID</button>
     </div>
+   
     <div>
         <a href="#" class="btn btn-outline-primary btn-sm me-2" id="btn-sincronizar-todo">🔁 Todo</a>
         <a href="#" class="btn btn-outline-success btn-sm me-2" id="btn-sincronizar-mes">📅 Último mes</a>
@@ -92,5 +99,6 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/orders.js') }}"></script>
+<script src="{{ url_for('static', filename='js/filters/search_order_by_id_or_pack.js') }}"></script>
 
 {% endblock %}
