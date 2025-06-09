@@ -38,7 +38,7 @@
         <tbody>
             {% for orden in ordenes %}
             <tr>
-                <td>{{ orden.order_id }}</td>
+                <td>{{ orden.reference_id }}</td>
                 <td>{{ orden.created_at.strftime('%Y-%m-%d %H:%M') if orden.created_at }}</td>
                 <td>${{ '%.2f'|format(orden.total_amount or 0) }}</td>
                 <td>{{ orden.status }}</td>
