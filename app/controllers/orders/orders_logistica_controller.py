@@ -44,7 +44,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
         " FROM orders o"
         " LEFT JOIN shipments s ON o.shipping_id = s.shipping_id"
     )
-    # Agregar WHERE si hay filtros
+    # Agregar WHERE si hay filtros 
     if filters:
         base_query += " WHERE " + " AND ".join(filters)
         base_query += " ORDER BY o.created_at DESC"
