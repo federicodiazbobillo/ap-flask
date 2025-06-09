@@ -13,23 +13,24 @@
   <h2>Logística</h2>
   <form class="form-inline" method="get" action="{{ url_for('orders_logistica.index_logistica') }}">
     <div class="input-group mb-2 mr-2">
-      <input type="text" class="form-control" name="id" placeholder="ID de orden o pack" value="{{ filtro_id or '' }}">
+      <label for="id" class="form-label mr-1">ID Orden/Paq:</label>
+      <input type="text" class="form-control" id="id" name="id" placeholder="ID de orden o pack" value="{{ filtro_id or '' }}">
     </div>
     <div class="form-group mb-2 mr-2">
-      <label for="fecha-desde" class="sr-only">Creación desde</label>
-      <input type="date" class="form-control" id="fecha-desde" name="fecha_desde" value="{{ filtro_fecha_desde or '' }}" placeholder="Creación desde">
+      <label for="fecha-desde" class="form-label mr-1">Creación desde:</label>
+      <input type="date" class="form-control" id="fecha-desde" name="fecha_desde" value="{{ filtro_fecha_desde or '' }}">
     </div>
     <div class="form-group mb-2 mr-2">
-      <label for="fecha-hasta" class="sr-only">Creación hasta</label>
-      <input type="date" class="form-control" id="fecha-hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta or '' }}" placeholder="Creación hasta">
+      <label for="fecha-hasta" class="form-label mr-1">Creación hasta:</label>
+      <input type="date" class="form-control" id="fecha-hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta or '' }}">
     </div>
     <div class="form-group mb-2 mr-2">
-      <label for="venc-desde" class="sr-only">Vencimiento desde</label>
-      <input type="date" class="form-control" id="venc-desde" name="venc_desde" value="{{ filtro_venc_desde or '' }}" placeholder="Vencimiento desde">
+      <label for="venc-desde" class="form-label mr-1">Venc. desde:</label>
+      <input type="date" class="form-control" id="venc-desde" name="venc_desde" value="{{ filtro_venc_desde or '' }}">
     </div>
     <div class="form-group mb-2 mr-2">
-      <label for="venc-hasta" class="sr-only">Vencimiento hasta</label>
-      <input type="date" class="form-control" id="venc-hasta" name="venc_hasta" value="{{ filtro_venc_hasta or '' }}" placeholder="Vencimiento hasta">
+      <label for="venc-hasta" class="form-label mr-1">Venc. hasta:</label>
+      <input type="date" class="form-control" id="venc-hasta" name="venc_hasta" value="{{ filtro_venc_hasta or '' }}">
     </div>
     <button type="submit" class="btn btn-outline-info mb-2">🔍 Buscar</button>
     <a href="{{ url_for('orders_logistica.index_logistica') }}" class="btn btn-outline-secondary mb-2">🧹 Limpiar filtros</a>
