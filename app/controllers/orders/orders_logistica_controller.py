@@ -5,7 +5,8 @@ orders_logistica_bp = Blueprint('orders_logistica', __name__, url_prefix='/order
 
 def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
     """
-    Función interna para obtener órdenes con filtros de ID y rango de fechas (inclusive), junto con datos normalizados.
+    Función interna para obtener órdenes con filtros de ID y rango de fechas (inclusive),
+    agrupar por pack_id (o order_id si pack_id es null) y normalizar datos.
     """
     conn = get_conn()
     cursor = conn.cursor()
@@ -35,57 +36,65 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
         " FROM orders o"
         " LEFT JOIN shipments s ON o.shipping_id = s.shipping_id"
     )
-
-    # Orden y límite: solo limitar si no hay filtros
     if filters:
         base_query += " WHERE " + " AND ".join(filters)
-        base_query += " ORDER BY o.created_at DESC"
     else:
         base_query += " ORDER BY o.created_at DESC LIMIT 50"
+    # Si hay filtros, ordenar sin límite
+    if filters:
+        base_query += " ORDER BY o.created_at DESC"
 
     cursor.execute(base_query, tuple(params) if params else None)
-    raw_orders = cursor.fetchall()
+    raw = cursor.fetchall()
 
-    # Normalizar resultados
-    orders = []
-    order_ids = []
-    for row in raw_orders:
+    # Agrupar registros por reference_id = pack_id o order_id
+    groups = {}  # reference_id -> {'meta': {...}, 'order_ids': []}
+    for row in raw:
         order_id, pack_id, created_at, total_amount, order_status, ending_date, shipping_status = row
         reference_id = pack_id or order_id
-        created_str = created_at.strftime('%d/%m/%Y') if hasattr(created_at, 'strftime') else ''
-        ending_str = ending_date.strftime('%d/%m/%Y') if hasattr(ending_date, 'strftime') else 'Entrega inmediata'
-        orders.append({
-            'order_id':                  order_id,
-            'pack_id':                   pack_id,
-            'reference_id':              reference_id,
-            'created_at':                created_str,
-            'total_amount':              total_amount,
-            'status':                    order_status,
-            'manufacturing_ending_date': ending_str,
-            'shipping_status':           shipping_status
-        })
-        order_ids.append(order_id)
+        if reference_id not in groups:
+            created_str = created_at.strftime('%d/%m/%Y') if hasattr(created_at, 'strftime') else ''
+            ending_str = ending_date.strftime('%d/%m/%Y') if hasattr(ending_date, 'strftime') else 'Entrega inmediata'
+            groups[reference_id] = {
+                'meta': {
+                    'reference_id': reference_id,
+                    'created_at': created_str,
+                    'total_amount': total_amount,
+                    'status': order_status,
+                    'manufacturing_ending_date': ending_str,
+                    'shipping_status': shipping_status
+                },
+                'order_ids': []
+            }
+        groups[reference_id]['order_ids'].append(order_id)
 
-    # Obtener items relacionados (solo campos necesarios)
+    # Obtener items relacionados para todos los order_ids
+    all_ids = [oid for g in groups.values() for oid in g['order_ids']]
     items_map = {}
-    if order_ids:
-        placeholders = ','.join(['%s'] * len(order_ids))
+    if all_ids:
+        placeholders = ','.join(['%s'] * len(all_ids))
         cursor.execute(
             f"SELECT order_id, item_id, seller_sku, quantity"
             f" FROM order_items WHERE order_id IN ({placeholders})",
-            tuple(order_ids)
+            tuple(all_ids)
         )
         for r in cursor.fetchall():
             items_map.setdefault(r[0], []).append({
-                'order_id':   r[0],
-                'item_id':    r[1],
+                'item_id': r[1],
                 'seller_sku': r[2],
-                'quantity':   r[3]
+                'quantity': r[3]
             })
 
-    # Asignar items a cada orden
-    for o in orders:
-        o['items'] = items_map.get(o['order_id'], [])
+    # Construir lista final con items agrupados
+    orders = []
+    for gid, group in groups.items():
+        meta = group['meta']
+        # Consolidar todos los items de los order_ids del grupo
+        items = []
+        for oid in group['order_ids']:
+            items.extend(items_map.get(oid, []))
+        meta['items'] = items
+        orders.append(meta)
 
     cursor.close()
     return orders
@@ -93,7 +102,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None):
 @orders_logistica_bp.route('/')
 def index_logistica():
     """
-    Vista HTML de logística con filtros por ID y rango de fechas.
+    Vista HTML de logística con filtros y agrupación por pack.
     """
     id_param = request.args.get('id')
     fecha_desde = request.args.get('fecha_desde')
@@ -111,7 +120,7 @@ def index_logistica():
 @orders_logistica_bp.route('/search')
 def search_logistica():
     """
-    Endpoint JSON para búsqueda de órdenes con filtros de ID y rango de fechas (AJAX).
+    Endpoint JSON para búsqueda de órdenes con filtros y agrupación.
     """
     id_param = request.args.get('id')
     fecha_desde = request.args.get('fecha_desde')
