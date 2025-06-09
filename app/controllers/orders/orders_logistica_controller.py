@@ -1,9 +1,8 @@
 from flask import Blueprint, render_template, request, jsonify
 from app.db import get_conn
-from app.utils.filters.query_builder import construir_consulta
-#from app.utils.filters.core.filtro_por_id_o_pack import filtro_por_id_o_pack
 
 orders_logistica_bp = Blueprint('orders_logistica', __name__, url_prefix='/orders/logistica')
+
 
 @orders_logistica_bp.route('/')
 def index_logistica():
@@ -34,6 +33,7 @@ def index_logistica():
         ordenes.append(orden)
         orden_ids.append(row[0])
 
+    # Cargar ítems
     items_map = {}
     if orden_ids:
         format_strings = ','.join(['%s'] * len(orden_ids))
@@ -62,28 +62,24 @@ def index_logistica():
 
 @orders_logistica_bp.route('/buscar')
 def buscar_order_logistica():
+    conn = get_conn()
+    cursor = conn.cursor()
+
     valor = request.args.get('id')
     if not valor:
         return jsonify({'error': 'Falta el parámetro id'}), 400
 
-    filtros = [lambda: filtro_por_id_o_pack(valor)]
-    where_clause, params = construir_consulta(filtros)
-
-    conn = get_conn()
-    cursor = conn.cursor()
-
-    sql = f"""
+    cursor.execute("""
         SELECT o.order_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
         FROM orders o
         LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
-        WHERE {where_clause}
+        WHERE o.order_id = %s OR o.pack_id = %s
         LIMIT 1
-    """
-    cursor.execute(sql, params)
+    """, (valor, valor))
     row = cursor.fetchone()
 
     if not row:
-        return jsonify({'mensaje': 'No se encontró el pedido con ese ID o pack_id'}), 404
+        return jsonify({'mensaje': 'No se encontró la orden'}), 404
 
     orden = {
         'order_id': row[0],
@@ -98,16 +94,17 @@ def buscar_order_logistica():
         SELECT order_id, item_id, seller_sku, quantity, manufacturing_days, sale_fee
         FROM order_items WHERE order_id = %s
     """, (orden['order_id'],))
-    items = cursor.fetchall()
-
-    orden['items'] = [{
-        'order_id': r[0],
-        'item_id': r[1],
-        'seller_sku': r[2],
-        'quantity': r[3],
-        'manufacturing_days': r[4],
-        'sale_fee': r[5],
-    } for r in items]
+    orden['items'] = [
+        {
+            'order_id': r[0],
+            'item_id': r[1],
+            'seller_sku': r[2],
+            'quantity': r[3],
+            'manufacturing_days': r[4],
+            'sale_fee': r[5],
+        }
+        for r in cursor.fetchall()
+    ]
 
     cursor.close()
     return jsonify({'order': orden})

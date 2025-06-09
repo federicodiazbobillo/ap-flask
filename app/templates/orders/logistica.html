@@ -2,25 +2,32 @@
 
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h2>Logistica</h2>
-    
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2>Logística</h2>
+
+    <!-- Filtros -->
     <div class="input-group mb-3" style="max-width: 400px;">
-        <input type="number" class="form-control" id="input-order-id" placeholder="ID de orden o pack">
-        <button class="btn btn-outline-info" type="button" id="btn-sincronizar-id">🔍 Buscar orden</button>
+        <input type="number" class="form-control" id="input-order-id-busqueda" placeholder="ID de orden o pack">
+        <div class="input-group-append">
+            <button class="btn btn-outline-info" type="button" id="btn-buscar-id">🔍 Buscar</button>
+            <button class="btn btn-outline-secondary" type="button" id="btn-limpiar-filtros">🧹 Limpiar filtros</button>
+        </div>
     </div>
-    
+
+    <!-- Sincronización específica -->
     <div class="input-group mb-3" style="max-width: 400px;">
-        <input type="text" class="form-control" id="input-order-id" placeholder="ID de orden específica">
+        <input type="text" class="form-control" id="input-order-id-sincronizar" placeholder="ID de orden específica">
         <button class="btn btn-outline-info" type="button" id="btn-sincronizar-id">🔍 Sincronizar ID</button>
     </div>
-   
+
+    <!-- Sincronizar por rango -->
     <div>
         <a href="#" class="btn btn-outline-primary btn-sm me-2" id="btn-sincronizar-todo">🔁 Todo</a>
         <a href="#" class="btn btn-outline-success btn-sm me-2" id="btn-sincronizar-mes">📅 Último mes</a>
         <a href="#" class="btn btn-outline-warning btn-sm" id="btn-sincronizar-48h">⏱️ Últimas 48h</a>
     </div>
 </div>
+
 
 <!-- Mensaje éxito -->
 <div id="mensaje-exito" class="card bg-success text-white shadow mb-4" style="display: none;">
