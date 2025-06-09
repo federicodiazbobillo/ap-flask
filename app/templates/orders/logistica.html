@@ -42,7 +42,13 @@
                 <td>{{ orden.created_at.strftime('%Y-%m-%d %H:%M') if orden.created_at }}</td>
                 <td>${{ '%.2f'|format(orden.total_amount or 0) }}</td>
                 <td>{{ orden.status }}</td>
-                <td>{{ orden.manufacturing_ending_date or '' }}</td>
+                <td>
+                {% if orden.manufacturing_ending_date %}
+                    {{ orden.manufacturing_ending_date }}
+                {% else %}
+                    Entrega inmediata
+                {% endif %}
+                </td>
                 <td>
                     {% if orden['items'] %}
                     <table class="table table-sm table-bordered mb-0">
@@ -61,13 +67,7 @@
                                 <td>{{ item.item_id }}</td>
                                 <td>{{ item.seller_sku or '-' }}</td>
                                 <td>{{ item.quantity }}</td>
-                                <td>
-                                    {% if orden.manufacturing_ending_date %}
-                                        {{ orden.manufacturing_ending_date }}
-                                    {% else %}
-                                        Entrega inmediata
-                                    {% endif %}
-                                </td>
+                                <td>{{ item.manufacturing_days or 0 }}</td>
                                 <td>${{ '%.2f'|format(item.sale_fee or 0) }}</td>
                             </tr>
                             {% endfor %}
