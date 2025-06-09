@@ -7,15 +7,11 @@
     width: 100%;
     font-size: 0.8rem;
   }
-  /* Texto más pequeño para filtros */
-  .logistica-filters {
-    font-size: 0.8rem;
-  }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
   <h2>Logística</h2>
-  <form class="form-inline logistica-filters" style="font-size:0.8rem;" method="get" action="{{ url_for('orders_logistica.index_logistica') }}">
+  <form class="form-inline" method="get" action="{{ url_for('orders_logistica.index_logistica') }}">
     <div class="input-group mb-2 mr-2">
       <label for="id" class="form-label mr-1">ID Orden/Paq:</label>
       <input type="text" class="form-control" id="id" name="id" placeholder="ID de orden o pack" value="{{ filtro_id or '' }}">
@@ -41,7 +37,6 @@
   </form>
 </div>
 
-{# Mostrar total de registros #}
 <p><strong>Total de registros:</strong> {{ ordenes|length }}</p>
 
 <div class="table-responsive">
@@ -52,6 +47,7 @@
         <th>Creación</th>
         <th>Vencimiento</th>
         <th>Estado / Envío</th>
+        <th>Guía</th>
         <th>Items</th>
       </tr>
     </thead>
@@ -68,8 +64,9 @@
           {% endif %}
         </td>
         <td>{{ orden.status }} / {{ orden.shipping_status }}</td>
+        <td>{{ orden.guia or '-' }}</td>
         <td>
-          {% if orden['items'] %}
+          {% if orden.items %}
           <table class="table table-sm table-bordered mb-0">
             <thead class="bg-light">
               <tr>
@@ -79,7 +76,7 @@
               </tr>
             </thead>
             <tbody>
-              {% for item in orden['items'] %}
+              {% for item in orden.items %}
               <tr>
                 <td>{{ item.item_id }}</td>
                 <td>{{ item.seller_sku or '-' }}</td>
