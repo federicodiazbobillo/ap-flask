@@ -29,9 +29,9 @@ def index_logistica():
 
         # Formatear created_at y manufacturing_ending_date
         created_at = row[2]
-        created_str = created_at.strftime('%d/%m/%Y') if created_at else ''
+        created_str = created_at.strftime('%d/%m/%Y') if hasattr(created_at, 'strftime') else ''
         ending_date = row[5]
-        if ending_date:
+        if hasattr(ending_date, 'strftime'):
             ending_str = ending_date.strftime('%d/%m/%Y')
         else:
             ending_str = 'Entrega inmediata'
@@ -48,12 +48,12 @@ def index_logistica():
         orders.append(order)
         order_ids.append(order_id)
 
-    # Obtener items por order_id
+    # Obtener items por order_id (solo campos necesarios)
     items_map = {}
     if order_ids:
         format_strings = ','.join(['%s'] * len(order_ids))
         cursor.execute(f"""
-            SELECT order_id, item_id, seller_sku, quantity, manufacturing_days, sale_fee
+            SELECT order_id, item_id, seller_sku, quantity
             FROM order_items
             WHERE order_id IN ({format_strings})
         """, tuple(order_ids))
@@ -63,8 +63,6 @@ def index_logistica():
                 'item_id': item_row[1],
                 'seller_sku': item_row[2],
                 'quantity': item_row[3],
-                'manufacturing_days': item_row[4],
-                'sale_fee': item_row[5],
             }
             items_map.setdefault(item_row[0], []).append(item)
 
@@ -104,9 +102,9 @@ def search_orders():
 
         # Formatear fechas
         created_at = row[2]
-        created_str = created_at.strftime('%d/%m/%Y') if created_at else ''
+        created_str = created_at.strftime('%d/%m/%Y') if hasattr(created_at, 'strftime') else ''
         ending_date = row[5]
-        if ending_date:
+        if hasattr(ending_date, 'strftime'):
             ending_str = ending_date.strftime('%d/%m/%Y')
         else:
             ending_str = 'Entrega inmediata'
@@ -121,9 +119,9 @@ def search_orders():
             'manufacturing_ending_date': ending_str,
         }
 
-        # Items para la orden específica
+        # Items para la orden específica (solo campos necesarios)
         cursor.execute("""
-            SELECT order_id, item_id, seller_sku, quantity, manufacturing_days, sale_fee
+            SELECT order_id, item_id, seller_sku, quantity
             FROM order_items
             WHERE order_id = %s
         """, (order['order_id'],))
@@ -133,8 +131,6 @@ def search_orders():
                 'item_id': r[1],
                 'seller_sku': r[2],
                 'quantity': r[3],
-                'manufacturing_days': r[4],
-                'sale_fee': r[5],
             }
             for r in cursor.fetchall()
         ]
@@ -161,9 +157,9 @@ def search_orders():
 
         # Formatear fechas
         created_at = row[2]
-        created_str = created_at.strftime('%d/%m/%Y') if created_at else ''
+        created_str = created_at.strftime('%d/%m/%Y') if hasattr(created_at, 'strftime') else ''
         ending_date = row[5]
-        if ending_date:
+        if hasattr(ending_date, 'strftime'):
             ending_str = ending_date.strftime('%d/%m/%Y')
         else:
             ending_str = 'Entrega inmediata'
@@ -184,7 +180,7 @@ def search_orders():
     if order_ids:
         format_strings = ','.join(['%s'] * len(order_ids))
         cursor.execute(f"""
-            SELECT order_id, item_id, seller_sku, quantity, manufacturing_days, sale_fee
+            SELECT order_id, item_id, seller_sku, quantity
             FROM order_items
             WHERE order_id IN ({format_strings})
         """, tuple(order_ids))
@@ -194,8 +190,6 @@ def search_orders():
                 'item_id': item_row[1],
                 'seller_sku': item_row[2],
                 'quantity': item_row[3],
-                'manufacturing_days': item_row[4],
-                'sale_fee': item_row[5],
             }
             items_map.setdefault(item_row[0], []).append(item)
 

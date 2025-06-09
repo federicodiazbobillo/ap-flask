@@ -65,8 +65,6 @@
                                 <td>{{ item.item_id }}</td>
                                 <td>{{ item.seller_sku or '-' }}</td>
                                 <td>{{ item.quantity }}</td>
-                                <td>{{ item.manufacturing_days or 0 }}</td>
-                                <td>${{ '%.2f'|format(item.sale_fee or 0) }}</td>
                             </tr>
                             {% endfor %}
                         </tbody>
