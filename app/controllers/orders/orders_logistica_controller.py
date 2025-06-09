@@ -80,7 +80,7 @@ def index_logistica():
 
 
 @orders_logistica_bp.route('/search')
-def search_orders():
+def search_logistica():
     # Conexión y cursor
     conn = get_conn()
     cursor = conn.cursor()
