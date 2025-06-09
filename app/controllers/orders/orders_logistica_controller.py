@@ -9,11 +9,10 @@ def index_logistica():
     conn = get_conn()
     cursor = conn.cursor()
 
-    # Selección de campos incluyendo pack_id
+    # Selección de campos incluyendo pack_id y manufacturing_ending_date
     cursor.execute("""
-        SELECT o.order_id, o.pack_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
+        SELECT o.order_id, o.pack_id, o.created_at, o.total_amount, o.status, o.manufacturing_ending_date
         FROM orders o
-        LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
         ORDER BY o.created_at DESC
         LIMIT 50
     """)
@@ -27,6 +26,8 @@ def index_logistica():
         order_id = row[0]
         pack_id = row[1]
         reference_id = pack_id if pack_id is not None else order_id
+        # Manejar campo que puede ser NULL
+        ending_date = row[5] if row[5] is not None else ''
         order = {
             'order_id': order_id,
             'pack_id': pack_id,
@@ -34,8 +35,7 @@ def index_logistica():
             'created_at': row[2],
             'total_amount': row[3],
             'status': row[4],
-            'shipping_id': row[5],
-            'shipping': {'list_cost': row[6]},
+            'manufacturing_ending_date': ending_date,
         }
         orders.append(order)
         order_ids.append(order_id)
@@ -79,9 +79,8 @@ def search_orders():
     if order_id_param:
         # Búsqueda por order_id o pack_id
         cursor.execute("""
-            SELECT o.order_id, o.pack_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
+            SELECT o.order_id, o.pack_id, o.created_at, o.total_amount, o.status, o.manufacturing_ending_date
             FROM orders o
-            LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
             WHERE o.order_id = %s OR o.pack_id = %s
             LIMIT 1
         """, (order_id_param, order_id_param))
@@ -94,6 +93,7 @@ def search_orders():
         order_id = row[0]
         pack_id = row[1]
         reference_id = pack_id if pack_id is not None else order_id
+        ending_date = row[5] if row[5] is not None else ''
         order = {
             'order_id': order_id,
             'pack_id': pack_id,
@@ -101,8 +101,7 @@ def search_orders():
             'created_at': row[2],
             'total_amount': row[3],
             'status': row[4],
-            'shipping_id': row[5],
-            'shipping': {'list_cost': row[6]},
+            'manufacturing_ending_date': ending_date,
         }
 
         # Items para la orden específica
@@ -128,9 +127,8 @@ def search_orders():
 
     # Sin filtros: últimas 50 órdenes
     cursor.execute("""
-        SELECT o.order_id, o.pack_id, o.created_at, o.total_amount, o.status, o.shipping_id, s.list_cost
+        SELECT o.order_id, o.pack_id, o.created_at, o.total_amount, o.status, o.manufacturing_ending_date
         FROM orders o
-        LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
         ORDER BY o.created_at DESC
         LIMIT 50
     """)
@@ -143,6 +141,7 @@ def search_orders():
         order_id = row[0]
         pack_id = row[1]
         reference_id = pack_id if pack_id is not None else order_id
+        ending_date = row[5] if row[5] is not None else ''
         order = {
             'order_id': order_id,
             'pack_id': pack_id,
@@ -150,8 +149,7 @@ def search_orders():
             'created_at': row[2],
             'total_amount': row[3],
             'status': row[4],
-            'shipping_id': row[5],
-            'shipping': {'list_cost': row[6]},
+            'manufacturing_ending_date': ending_date,
         }
         orders.append(order)
         order_ids.append(order_id)
