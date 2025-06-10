@@ -61,7 +61,7 @@ def guardar_envios(shipping_ids, access_token):
                     list_cost = VALUES(list_cost),
                     status = VALUES(status),
                     substatus = VALUES(substatus),
-                    delayed = VALUES(delayed)
+                    `delayed` = VALUES(`delayed`)
             """, (shipping_id, list_cost, status, substatus, delayed))
         except Exception as e:
             print(f"❌ Error al insertar shipment_id {shipping_id}: {e}")
