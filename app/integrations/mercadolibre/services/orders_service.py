@@ -80,7 +80,7 @@ def guardar_ordenes_en_db(ordenes, user_meli_id=None):
 
             if not order_id or not created_at:
                 continue
-
+            print(f"Sincronizando {order_id} ")        
             cursor.execute("""
                 INSERT INTO orders (
                     order_id, created_at, last_updated, pack_id,

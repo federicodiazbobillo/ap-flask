@@ -1,26 +1,34 @@
-# app/integrations/mercadolibre/services/shipments_service.py
 import requests
+import time
 from decimal import Decimal
 from app.db import get_conn
-from flask import abort
+from app.integrations.mercadolibre.services.token_service import verificar_meli
+import pymysql
 
-def guardar_envios(shipping_ids, access_token):
+def guardar_envios(shipping_ids, _access_token):
     if not shipping_ids:
         return
 
     conn = get_conn()
     cursor = conn.cursor()
 
-    url_base = "https://api.mercadolibre.com/shipments/"
-    headers = {
-        "Authorization": f"Bearer {access_token}"
-    }
-
     for shipping_id in set(shipping_ids):
+        time.sleep(0.1)
+
         if not shipping_id:
             continue
 
-        url = f"{url_base}{shipping_id}"
+        # 🔄 Verificar y renovar token antes de cada request
+        access_token, user_id, error = verificar_meli()
+        if error:
+            print(f"❌ Token error en shipment_id {shipping_id}: {error}")
+            continue
+
+        headers = {
+            "Authorization": f"Bearer {access_token}"
+        }
+
+        url = f"https://api.mercadolibre.com/shipments/{shipping_id}"
         response = requests.get(url, headers=headers)
 
         if response.status_code != 200:
@@ -40,9 +48,18 @@ def guardar_envios(shipping_ids, access_token):
         status = data.get("status")
         substatus = str(data.get("substatus")) if data.get("substatus") else None
 
-        # Consulta SLA para obtener "delayed"
         delayed = None
         sla_url = f"https://api.mercadolibre.com/shipments/{shipping_id}/sla"
+        
+        # 🔄 Verificar token nuevamente antes del segundo GET
+        access_token, user_id, error = verificar_meli()
+        if error:
+            print(f"❌ Token error antes del SLA en shipment_id {shipping_id}: {error}")
+            continue
+        headers = {
+            "Authorization": f"Bearer {access_token}"
+        }
+
         sla_response = requests.get(sla_url, headers=headers)
         if sla_response.status_code == 200:
             sla_data = sla_response.json()
@@ -64,11 +81,29 @@ def guardar_envios(shipping_ids, access_token):
                     substatus = VALUES(substatus),
                     delay = VALUES(delay)
             """, (shipping_id, list_cost, status, substatus, delayed))
-            conn.commit()  # ✅ liberar lock por envío
+            conn.commit()
+        except (pymysql.OperationalError, pymysql.InternalError) as e:
+            print(f"⚠️ Error de conexión con MySQL al insertar shipment_id {shipping_id}: {e}")
+            try:
+                conn = get_conn()
+                cursor = conn.cursor()
+                cursor.execute("""
+                    INSERT INTO shipments (shipping_id, list_cost, status, substatus, delay)
+                    VALUES (%s, %s, %s, %s, %s)
+                    ON DUPLICATE KEY UPDATE
+                        list_cost = VALUES(list_cost),
+                        status = VALUES(status),
+                        substatus = VALUES(substatus),
+                        delay = VALUES(delay)
+                """, (shipping_id, list_cost, status, substatus, delayed))
+                conn.commit()
+                print(f"✅ Reintento exitoso de shipment_id {shipping_id}")
+            except Exception as e2:
+                print(f"❌ Falló el reintento de shipment_id {shipping_id}: {e2}")
+                conn.rollback()
         except Exception as e:
             conn.rollback()
-            print(f"❌ Error al insertar shipment_id {shipping_id}: {e}")
-            abort(500, description=f"Error al insertar shipment_id {shipping_id}: {e}")
+            print(f"❌ Error general al insertar shipment_id {shipping_id}: {e}")
+            continue
 
     cursor.close()
-
