@@ -40,7 +40,7 @@ def guardar_envios(shipping_ids, access_token):
         sla_response = requests.get(sla_url, headers=headers)
         if sla_response.status_code == 200:
             sla_data = sla_response.json()
-            if "status" in sla_data:
+            if isinstance(sla_data, dict) and "status" in sla_data:
                 delayed = sla_data["status"]
             # Si solo hay 'code', delayed queda como None
         print(f"Insertando shipment_id {shipping_id} con delayed: {delayed} {list_cost}")  # <-- Agregado
