@@ -56,13 +56,13 @@ def guardar_envios(shipping_ids, access_token):
 
         try:
             cursor.execute("""
-                INSERT INTO shipments (shipping_id, list_cost, status, substatus, `delayed`)
+                INSERT INTO shipments (shipping_id, list_cost, status, substatus, delay)
                 VALUES (%s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
                     list_cost = VALUES(list_cost),
                     status = VALUES(status),
                     substatus = VALUES(substatus),
-                    `delayed` = VALUES(`delayed`)
+                    delay = VALUES(delay)
             """, (shipping_id, list_cost, status, substatus, delayed))
         except Exception as e:
             print(f"❌ Error al insertar shipment_id {shipping_id}: {e}")
