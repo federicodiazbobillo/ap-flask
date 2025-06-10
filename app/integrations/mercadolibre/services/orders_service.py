@@ -1,16 +1,29 @@
 import requests
+import time
 from app.db import get_conn
 from .shipments_service import guardar_envios
 from app.integrations.mercadolibre.services.token_service import verificar_meli
 
-def obtener_ordenes(access_token, user_id, date_from=None, date_to=None):
-    url = "https://api.mercadolibre.com/orders/search"
-
+def obtener_ordenes(_, __, date_from=None, date_to=None):
     ordenes = []
     offset = 0
     limit = 50
 
     while True:
+        time.sleep(0.1)  # 🕒 evitar saturación
+
+        # 🔄 Verificar token antes de cada llamada
+        access_token, user_id, error = verificar_meli()
+        if error:
+            return {
+                "error": True,
+                "message": f"❌ Error de token: {error}"
+            }
+
+        headers = {
+            "Authorization": f"Bearer {access_token}"
+        }
+
         params = {
             "seller": user_id,
             "limit": limit,
@@ -18,20 +31,12 @@ def obtener_ordenes(access_token, user_id, date_from=None, date_to=None):
             "sort": "date_desc"
         }
 
-        # Si se pasa un rango de fechas, lo agregamos a los params
         if date_from:
             params["order.date_created.from"] = date_from
         if date_to:
             params["order.date_created.to"] = date_to
-        
-        # 🔄 Verificar y renovar token antes de cada request
-        access_token, user_id, error = verificar_meli()
-     
-        headers = {
-            "Authorization": f"Bearer {access_token}"
-        }
-                
-        response = requests.get(url, headers=headers, params=params)
+
+        response = requests.get("https://api.mercadolibre.com/orders/search", headers=headers, params=params)
         if response.status_code != 200:
             return {
                 "error": True,
@@ -46,19 +51,24 @@ def obtener_ordenes(access_token, user_id, date_from=None, date_to=None):
         ordenes.extend(batch)
         offset += len(batch)
 
-    # ✅ Aquí agregamos el user_id correctamente
     guardar_ordenes_en_db(ordenes, user_meli_id=user_id)
 
-    # recolectar shipping_ids de todas las órdenes
-    shipping_ids = [orden.get("shipping", {}).get("id") for orden in ordenes if orden.get("shipping")]
+    # 🔄 volver a verificar token para guardar envíos
+    access_token, _, error = verificar_meli()
+    if error:
+        return {
+            "error": True,
+            "message": f"❌ Error de token al guardar envíos: {error}"
+        }
 
-    # guardar envíos
+    shipping_ids = [orden.get("shipping", {}).get("id") for orden in ordenes if orden.get("shipping")]
     guardar_envios(shipping_ids, access_token)
-    
+
     return {
         "error": False,
         "ordenes": ordenes
     }
+
 
 
 
