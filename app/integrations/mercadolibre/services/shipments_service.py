@@ -28,19 +28,30 @@ def guardar_envios(shipping_ids, access_token):
         data = response.json()
         list_cost = data.get("shipping_option", {}).get("list_cost")
         status = data.get("status")
-        substatus = data.get("substatus")  # Nuevo campo
+        substatus = data.get("substatus")
+
+        # Segunda consulta para obtener 'delayed'
+        delayed = None
+        sla_url = f"https://api.mercadolibre.com/shipments/{shipping_id}/sla"
+        sla_response = requests.get(sla_url, headers=headers)
+        if sla_response.status_code == 200:
+            sla_data = sla_response.json()
+            if "status" in sla_data:
+                delayed = sla_data["status"]
+            # Si solo hay 'code', delayed queda como None
 
         if list_cost is None or status is None or substatus is None:
             continue
 
         cursor.execute("""
-            INSERT INTO shipments (shipping_id, list_cost, status, substatus)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO shipments (shipping_id, list_cost, status, substatus, delayed)
+            VALUES (%s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 list_cost = VALUES(list_cost),
                 status = VALUES(status),
-                substatus = VALUES(substatus)
-        """, (shipping_id, list_cost, status, substatus))
+                substatus = VALUES(substatus),
+                delayed = VALUES(delayed)
+        """, (shipping_id, list_cost, status, substatus, delayed))
 
     conn.commit()
     cursor.close()
