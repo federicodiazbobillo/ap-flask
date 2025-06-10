@@ -27,6 +27,8 @@ def guardar_envios(shipping_ids, access_token):
 
         data = response.json()
         list_cost = data.get("shipping_option", {}).get("list_cost")
+        if list_cost is not None:
+            list_cost = float(list_cost)
         status = data.get("status")
         substatus = data.get("substatus")
 
