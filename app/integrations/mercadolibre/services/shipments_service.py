@@ -1,6 +1,8 @@
 # app/integrations/mercadolibre/services/shipments_service.py
 import requests
 from app.db import get_conn
+from decimal import Decimal
+
 
 def guardar_envios(shipping_ids, access_token):
     if not shipping_ids:
@@ -29,7 +31,7 @@ def guardar_envios(shipping_ids, access_token):
 
         list_cost = data.get("shipping_option", {}).get("list_cost")
         if list_cost is not None:
-            list_cost = "{:.2f}".format(float(list_cost))
+            list_cost = round(float(list_cost), 2)
 
         status = data.get("status")
         substatus = data.get("substatus")
