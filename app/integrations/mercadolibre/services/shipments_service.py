@@ -2,6 +2,7 @@
 import requests
 from decimal import Decimal
 from app.db import get_conn
+from flask import abort
 
 def guardar_envios(shipping_ids, access_token):
     if not shipping_ids:
@@ -55,7 +56,7 @@ def guardar_envios(shipping_ids, access_token):
 
         try:
             cursor.execute("""
-                INSERT INTO shipments (shipping_id, list_cost, status, substatus, delayed)
+                INSERT INTO shipments (shipping_id, list_cost, status, substatus, `delayed`)
                 VALUES (%s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE
                     list_cost = VALUES(list_cost),
