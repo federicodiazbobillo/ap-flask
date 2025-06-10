@@ -28,17 +28,19 @@ def guardar_envios(shipping_ids, access_token):
         data = response.json()
         list_cost = data.get("shipping_option", {}).get("list_cost")
         status = data.get("status")
+        substatus = data.get("substatus")  # Nuevo campo
 
-        if list_cost is None or status is None:
+        if list_cost is None or status is None or substatus is None:
             continue
 
         cursor.execute("""
-            INSERT INTO shipments (shipping_id, list_cost, status)
-            VALUES (%s, %s, %s)
+            INSERT INTO shipments (shipping_id, list_cost, status, substatus)
+            VALUES (%s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 list_cost = VALUES(list_cost),
-                status = VALUES(status)
-        """, (shipping_id, list_cost, status))
+                status = VALUES(status),
+                substatus = VALUES(substatus)
+        """, (shipping_id, list_cost, status, substatus))
 
     conn.commit()
     cursor.close()
