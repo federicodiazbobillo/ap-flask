@@ -40,7 +40,7 @@ def guardar_envios(shipping_ids, access_token):
         status = data.get("status")
         substatus = str(data.get("substatus")) if data.get("substatus") else None
 
-        # Segunda consulta para obtener 'delayed'
+        # Consulta SLA para obtener "delayed"
         delayed = None
         sla_url = f"https://api.mercadolibre.com/shipments/{shipping_id}/sla"
         sla_response = requests.get(sla_url, headers=headers)
@@ -64,9 +64,11 @@ def guardar_envios(shipping_ids, access_token):
                     substatus = VALUES(substatus),
                     delay = VALUES(delay)
             """, (shipping_id, list_cost, status, substatus, delayed))
+            conn.commit()  # ✅ liberar lock por envío
         except Exception as e:
+            conn.rollback()
             print(f"❌ Error al insertar shipment_id {shipping_id}: {e}")
             abort(500, description=f"Error al insertar shipment_id {shipping_id}: {e}")
 
-    conn.commit()
     cursor.close()
+
