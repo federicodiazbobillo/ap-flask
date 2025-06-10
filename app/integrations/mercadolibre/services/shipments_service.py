@@ -41,7 +41,7 @@ def guardar_envios(shipping_ids, access_token):
             # Si solo hay 'code', delayed queda como None
         print(f"Insertando shipment_id {shipping_id} con delayed: {delayed} {list_cost}")  # <-- Agregado
         
-        if list_cost is None or status is None or substatus is None:
+        if list_cost is None or status is None or substatus is None: 
             continue
 
         cursor.execute("""
