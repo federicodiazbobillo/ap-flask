@@ -65,6 +65,7 @@ def guardar_envios(shipping_ids, access_token):
             """, (shipping_id, list_cost, status, substatus, delayed))
         except Exception as e:
             print(f"❌ Error al insertar shipment_id {shipping_id}: {e}")
+            abort(500, description=f"Error al insertar shipment_id {shipping_id}: {e}")
 
     conn.commit()
     cursor.close()
