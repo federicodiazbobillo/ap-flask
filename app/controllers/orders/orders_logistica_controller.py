@@ -49,7 +49,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
         base_query += " WHERE " + " AND ".join(filters)
         base_query += " ORDER BY o.created_at DESC"
     else:
-        base_query += " ORDER BY o.created_at DESC LIMIT 50"
+        base_query += " WHERE DATE(o.created_at) = CURDATE()"
 
     cursor.execute(base_query, tuple(params) if params else None)
     raw = cursor.fetchall()
