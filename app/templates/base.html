@@ -81,6 +81,20 @@
             </div>
         </li> 
         <li class="nav-item">
+            <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseCompras"
+                aria-expanded="true" aria-controls="collapseCompras">
+                <i class="fas fa-fw fa-truck-loading"></i>
+                <span>Compras</span>
+            </a>
+            <div id="collapseCompras" class="collapse {% if tipo in ['proveedores'] %}show{% endif %}"
+                aria-labelledby="headingCompras" data-parent="#accordionSidebar">
+                <div class="bg-white py-2 collapse-inner rounded">
+                    <h6 class="collapse-header">Gestión:</h6>
+                    <a class="collapse-item {% if tipo == 'proveedores' %}active{% endif %}" href="{{ url_for('facturas_proveedores.index') }}">📥 Proveedores</a>
+                </div>
+            </div>
+        </li>        
+        <li class="nav-item">
             <a class="nav-link" href="{{ url_for('sync_mercadolibre.index') }}">
                 <i class="fas fa-sync-alt"></i>
                 <span>Sync Mercado Libre</span>
