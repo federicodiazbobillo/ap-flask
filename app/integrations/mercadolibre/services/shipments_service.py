@@ -106,3 +106,4 @@ def guardar_envios(shipping_ids, _access_token):
             break
 
     cursor.close()
+ 
