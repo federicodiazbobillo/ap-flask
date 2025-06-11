@@ -13,7 +13,7 @@ from flask import request, redirect, flash
 from app.db import get_conn
 
 @invoices_bp.route('/upload_celesa', methods=['POST'])
-def upload():
+def upload_celesa():
     file = request.files.get('csv_file')
     if not file or not file.filename.endswith('.csv'):
         flash("Invalid file format. Please upload a .csv file.", "danger")
