@@ -57,10 +57,12 @@ def upload_celesa():
     df.columns = ['nro_fc', 'fecha', 'isbn', 'importe', 'unidades']
     df['isbn'] = df['isbn'].astype(str).str.strip()
     df['importe'] = df['importe'].str.replace(",", ".").astype(float)
-    df['fecha'] = pd.to_datetime(df['fecha'], dayfirst=True).dt.date
     df['unidades'] = pd.to_numeric(df['unidades'], errors='coerce').fillna(1).astype(int)
+    df['importe'] = df['importe'] / df['unidades']  # ✅ dividir después de convertir
+    df['fecha'] = pd.to_datetime(df['fecha'], dayfirst=True).dt.date
     df['proveedor'] = 'Celesa'
     df['order_id'] = None
+
 
     # Verificar facturas duplicadas por nro_fc
     conn = get_conn()
