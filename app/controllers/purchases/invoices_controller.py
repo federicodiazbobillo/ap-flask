@@ -5,7 +5,27 @@ invoices_bp = Blueprint('invoices_suppliers', __name__, url_prefix='/purchases/i
 
 @invoices_bp.route('/')
 def index():
-    return render_template('purchases/invoices_suppliers.html', tipo='suppliers')
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT
+            nro_fc,
+            fecha,
+            proveedor,
+            COUNT(*) AS unidades,
+            SUM(importe) AS total_importe
+        FROM facturas_proveedores
+        GROUP BY nro_fc, fecha, proveedor
+        ORDER BY fecha DESC, nro_fc
+    """)
+    facturas = cursor.fetchall()
+    cursor.close()
+
+    return render_template(
+        'purchases/invoices_suppliers.html',
+        tipo='suppliers',
+        facturas=facturas
+    )
 
 
 import pandas as pd
@@ -73,25 +93,3 @@ def upload_celesa():
     return redirect(request.referrer)
 
 
-@invoices_bp.route('/list_invoices')
-def list_invoices():
-    conn = get_conn()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT
-            nro_fc,
-            fecha,
-            proveedor,
-            COUNT(*) AS unidades,
-            SUM(importe) AS total_importe
-        FROM facturas_proveedores
-        GROUP BY nro_fc, fecha, proveedor
-        ORDER BY fecha DESC, nro_fc
-    """)
-    facturas = cursor.fetchall()
-    cursor.close()
-
-    return render_template(
-        'purchases/invoices_suppliers.html',
-        facturas=facturas
-    )
