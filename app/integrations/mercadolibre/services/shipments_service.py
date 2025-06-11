@@ -79,7 +79,7 @@ def guardar_envios(shipping_ids, _access_token):
         except pymysql.OperationalError as e:
             if e.args[0] == 1205:
                 print(f"⚠️ Timeout en shipment_id {shipping_id}, reintentando en 1 segundo...")
-                time.sleep(1)
+                #time.sleep(0.1)
                 try:
                     cursor.execute("""
                         INSERT INTO shipments (shipping_id, list_cost, status, substatus, delay)
