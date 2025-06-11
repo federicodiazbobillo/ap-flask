@@ -71,3 +71,27 @@ def upload_celesa():
 
     flash(f"{len(df_expanded)} invoice rows loaded successfully.", "success")
     return redirect(request.referrer)
+
+
+@invoices_bp.route('/list_invoices')
+def list_invoices():
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT
+            nro_fc,
+            fecha,
+            proveedor,
+            COUNT(*) AS unidades,
+            SUM(importe) AS total_importe
+        FROM facturas_proveedores
+        GROUP BY nro_fc, fecha, proveedor
+        ORDER BY fecha DESC, nro_fc
+    """)
+    facturas = cursor.fetchall()
+    cursor.close()
+
+    return render_template(
+        'purchases/invoices_list.html',
+        facturas=facturas
+    )

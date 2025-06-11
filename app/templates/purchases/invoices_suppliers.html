@@ -16,7 +16,7 @@
   {% endif %}
 {% endwith %}
 
-<form action="{{ url_for('invoices_suppliers.upload_celesa') }}" method="post" enctype="multipart/form-data">
+<form action="{{ url_for('invoices_suppliers.upload_celesa') }}" method="post" enctype="multipart/form-data" class="mb-4">
     <div class="form-group">
         <label for="csv_file">Upload CSV file:</label>
         <input type="file" class="form-control-file" id="csv_file" name="csv_file" accept=".csv" required>
@@ -24,4 +24,27 @@
     <button type="submit" class="btn btn-primary">Upload</button>
 </form>
 
+<h3 class="mt-5">📋 Uploaded Invoices</h3>
+<table class="table table-bordered table-striped">
+    <thead class="thead-light">
+        <tr>
+            <th>Invoice Nº</th>
+            <th>Date</th>
+            <th>Supplier</th>
+            <th>Units</th>
+            <th>Total Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in facturas %}
+        <tr>
+            <td>{{ row[0] }}</td>
+            <td>{{ row[1] }}</td>
+            <td>{{ row[2] }}</td>
+            <td>{{ row[3] }}</td>
+            <td>{{ row[4] | round(2) }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endblock %}
