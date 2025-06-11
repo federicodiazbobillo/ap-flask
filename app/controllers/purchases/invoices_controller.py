@@ -20,8 +20,13 @@ def upload_celesa():
         return redirect(request.referrer)
 
     # Leer CSV
-    df = pd.read_csv(file, sep=";", encoding="latin1")
+    try:
+        df = pd.read_csv(file, sep=";", encoding="latin1")
+    except Exception as e:
+        flash(f"Failed to read CSV: {e}", "danger")
+        return redirect(request.referrer)
 
+    # Validar columnas requeridas
     required_cols = ['NUM_DOCUMENTO', 'FECHA', 'EAN', 'IMPORTE', 'UNIDADES']
     if not all(col in df.columns for col in required_cols):
         flash("CSV file missing required columns.", "danger")
@@ -37,13 +42,24 @@ def upload_celesa():
     df['proveedor'] = 'Celesa'
     df['order_id'] = None
 
-    # Repetir cada fila según "unidades"
-    df_expanded = df.loc[df.index.repeat(df['unidades'])].drop(columns=['unidades'])
-
-    # Insertar en DB
+    # Verificar facturas duplicadas por nro_fc
     conn = get_conn()
     cursor = conn.cursor()
+    cursor.execute(
+        "SELECT nro_fc FROM facturas_proveedores WHERE nro_fc IN %s",
+        (tuple(df['nro_fc'].unique()),)
+    )
+    existing = set(row[0] for row in cursor.fetchall())
 
+    if existing:
+        flash(f"These invoice numbers already exist and cannot be uploaded again: {', '.join(existing)}", "danger")
+        cursor.close()
+        return redirect(request.referrer)
+
+    # Expandir filas según cantidad de unidades
+    df_expanded = df.loc[df.index.repeat(df['unidades'])].drop(columns=['unidades'])
+
+    # Insertar registros
     for _, row in df_expanded.iterrows():
         cursor.execute("""
             INSERT INTO facturas_proveedores (proveedor, nro_fc, fecha, isbn, importe, order_id)
