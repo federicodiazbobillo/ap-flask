@@ -92,6 +92,6 @@ def list_invoices():
     cursor.close()
 
     return render_template(
-        'purchases/invoices_list.html',
+        'purchases/invoices_suppliers.html',
         facturas=facturas
     )
