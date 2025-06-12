@@ -238,6 +238,23 @@
         });
     });
 </script>
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // Quita clases que lo colapsan
+    document.body.classList.remove('sidebar-toggled');
+    const sidebar = document.querySelector('.sidebar');
+    if (sidebar) {
+      sidebar.classList.remove('toggled');
+    }
+
+    // Evita que se colapse al hacer resize
+    window.addEventListener('resize', () => {
+      document.body.classList.remove('sidebar-toggled');
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar) sidebar.classList.remove('toggled');
+    });
+  });
+</script>
 
 </body>
 </html>
