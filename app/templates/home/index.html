@@ -37,7 +37,11 @@
   const chart = new Chart(ctx, {
     type: "line",
     data: {
-      labels: {{ fechas | tojson }},
+      labels: [
+        {% for i in range(fechas | length) %}
+          "{{ fechas[i] }} (${{ totales[i] }} | {{ cantidades[i] }} op.)"{% if not loop.last %},{% endif %}
+        {% endfor %}
+      ],
       datasets: [{
         label: "Ventas ($)",
         data: {{ totales | tojson }},
