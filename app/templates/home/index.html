@@ -19,7 +19,12 @@
   <!-- Card con gráfico -->
   <div class="card shadow mb-4">
     <div class="card-header py-3">
-      <h6 class="m-0 font-weight-bold text-primary">Ventas Diarias</h6>
+      <h6 class="m-0 font-weight-bold text-primary">
+        Ventas Diarias
+        <span class="text-dark ml-3">
+          Total: ${{ total_periodo | round(2) }} | {{ cantidad_periodo }} op.
+        </span>
+      </h6>
     </div>
     <div class="card-body">
       <div class="chart-area">

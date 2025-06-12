@@ -36,5 +36,15 @@ def index():
     fechas = [v[0].strftime("%Y-%m-%d") for v in ventas]
     totales = [float(v[1]) for v in ventas]
     cantidades = [int(v[2]) for v in ventas]
+    total_periodo = sum(totales)
+    cantidad_periodo = sum(cantidades)
 
-    return render_template("home/index.html", fechas=fechas, totales=totales, cantidades=cantidades, filtro=filtro)
+    return render_template(
+        "home/index.html",
+        fechas=fechas,
+        totales=totales,
+        cantidades=cantidades,
+        filtro=filtro,
+        total_periodo=total_periodo,
+        cantidad_periodo=cantidad_periodo
+    )
