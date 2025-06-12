@@ -19,7 +19,9 @@ def index():
         fecha_inicio = hoy - timedelta(days=7)
 
     query = """
-        SELECT DATE(created_at) AS fecha, SUM(total_amount) AS total
+        SELECT DATE(created_at) AS fecha, 
+            SUM(total_amount) AS total, 
+            COUNT(*) AS cantidad
         FROM orders
         WHERE created_at >= %s
         GROUP BY DATE(created_at)
@@ -33,5 +35,6 @@ def index():
 
     fechas = [v[0].strftime("%Y-%m-%d") for v in ventas]
     totales = [float(v[1]) for v in ventas]
+    cantidades = [int(v[2]) for v in ventas]
 
-    return render_template("home/index.html", fechas=fechas, totales=totales, filtro=filtro)
+    return render_template("home/index.html", fechas=fechas, totales=totales, cantidades=cantidades, filtro=filtro)

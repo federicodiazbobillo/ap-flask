@@ -38,27 +38,46 @@
     type: "line",
     data: {
       labels: {{ fechas | tojson }},
-      datasets: [{
-        label: "Ventas ($)",
-        data: {{ totales | tojson }},
-        fill: true,
-        tension: 0.4,
-        borderColor: "#4e73df",
-        backgroundColor: "rgba(78, 115, 223, 0.05)",
-        pointBackgroundColor: "#4e73df",
-        pointBorderColor: "#4e73df"
-      }]
+      datasets: [
+        {
+          label: "Ventas ($)",
+          data: {{ totales | tojson }},
+          yAxisID: 'y1',
+          borderColor: "#4e73df",
+          backgroundColor: "rgba(78, 115, 223, 0.05)",
+          tension: 0.4,
+          fill: true
+        },
+        {
+          label: "Cantidad de operaciones",
+          data: {{ cantidades | tojson }},
+          yAxisID: 'y2',
+          borderColor: "#1cc88a",
+          backgroundColor: "rgba(28, 200, 138, 0.05)",
+          tension: 0.4,
+          fill: true
+        }
+      ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        y: {
-          beginAtZero: true
+        y1: {
+          beginAtZero: true,
+          position: 'left',
+          title: { display: true, text: 'Ventas ($)' }
+        },
+        y2: {
+          beginAtZero: true,
+          position: 'right',
+          grid: { drawOnChartArea: false },
+          title: { display: true, text: 'Operaciones' }
         }
       }
     }
-  });
+    });
+
 
   function cambiarFiltro() {
     const filtro = document.getElementById("filtro-selector").value;
