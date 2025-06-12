@@ -43,7 +43,7 @@
         {% endfor %}
       ],
       datasets: [{
-        label: "Ventas",
+        label: "Ventas ($)",
         data: {{ totales | tojson }},
         fill: true,
         tension: 0.4,
@@ -52,8 +52,7 @@
         pointBackgroundColor: "#4e73df",
         pointBorderColor: "#4e73df"
       }]
-    }
-
+    },
     options: {
       responsive: true,
       maintainAspectRatio: false,
