@@ -2,7 +2,7 @@
 
 from flask import Blueprint, render_template, request
 from datetime import datetime, timedelta
-from app.db import get_conn
+from app import db
 
 home_bp = Blueprint("home", __name__, url_prefix="/")
 
