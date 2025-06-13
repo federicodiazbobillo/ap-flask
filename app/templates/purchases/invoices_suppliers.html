@@ -32,6 +32,7 @@
             <th>Date</th>
             <th>Supplier</th>
             <th>Units</th>
+            <th>Tipo de cambio</th>
             <th>Total Amount</th>
             <th>Detalle</th>
             <th>tipo</th>
@@ -43,7 +44,8 @@
           <td>{{ row[0] }}</td>
           <td>{{ row[1] }}</td>
           <td>{{ row[2] }}</td>
-          <td>{{ row[4] }} / {{ row[3] }}</td>  <!-- sincronizados / total -->
+          <td>{{ row[4] }} / {{ row[3] }}</td>  <!-- sincronizados / total -->          
+          <td>{{ row[8] or '-' }}</td>
           <td>€ {{ row[5] | round(2) }}</td>          
           <td>
             <a href="{{ url_for('invoices_suppliers_detail.view', nro_fc=row[0]) }}" class="btn btn-sm btn-info">

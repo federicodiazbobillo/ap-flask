@@ -16,10 +16,12 @@ def index():
             SUM(CASE WHEN order_id IS NOT NULL THEN 1 ELSE 0 END) AS sincronizados,
             SUM(importe) AS total_importe,
             tipo_factura,
-            MIN(id) AS ejemplo_id
+            MIN(id) AS ejemplo_id,
+            MIN(tc) AS tipo_cambio
         FROM invoices_suppliers
         GROUP BY nro_fc, fecha, proveedor, tipo_factura
         ORDER BY fecha DESC, nro_fc
+
 
     """)
     facturas = cursor.fetchall()
