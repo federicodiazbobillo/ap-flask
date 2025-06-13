@@ -31,7 +31,7 @@ def buscar_ordenes_por_isbn():
             s.substatus
         FROM orders o
         JOIN order_items oi ON o.order_id = oi.order_id
-        LEFT JOIN shipments s ON o.shipping_id = s.id
+        LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
         WHERE oi.seller_sku = %s
         ORDER BY o.created_at DESC
     """, (isbn,))
