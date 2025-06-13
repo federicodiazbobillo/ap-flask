@@ -75,3 +75,19 @@ def vincular_orden():
     cursor.close()
     flash("Orden vinculada exitosamente", "success")
     return redirect(request.referrer)
+
+
+@invoices_detail_bp.route('/desvincular_orden', methods=['POST'])
+def desvincular_orden():
+    item_id = request.form.get('item_id')
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE invoices_suppliers
+        SET order_id = NULL
+        WHERE id = %s
+    """, (item_id,))
+    conn.commit()
+    cursor.close()
+    flash("Orden desvinculada correctamente", "info")
+    return redirect(request.referrer)

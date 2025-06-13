@@ -21,7 +21,17 @@
             <td>{{ row[2] }}</td>
             <td>{{ row[3] }}</td>
             <td>{{ row[4] }}</td>
-            <td>{{ row[5] or "-" }}</td>
+            <td>
+                {% if row[5] %}
+                    <form method="post" action="{{ url_for('invoices_suppliers_detail.desvincular_orden') }}" style="display:inline;">
+                    <input type="hidden" name="item_id" value="{{ row[0] }}">
+                    <span>#{{ row[5] }}</span>
+                    <button type="submit" class="btn btn-sm btn-outline-danger ml-1" title="Quitar vínculo" onclick="return confirm('¿Desvincular esta orden?')">×</button>
+                    </form>
+                {% else %}
+                    -
+                {% endif %}
+            </td>
             <td>{{ row[6] }}</td>
             <td>
                 {% if not row[5] %}
