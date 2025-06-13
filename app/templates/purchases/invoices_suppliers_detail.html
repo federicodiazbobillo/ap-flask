@@ -1,8 +1,4 @@
-{% extends "base.html" %}
-{% block content %}
-<h3>Detalle de Factura: {{ nro_fc }}</h3>
-
-<table class="table table-bordered table-striped">
+<table class="table table-bordered">
     <thead>
         <tr>
             <th>Fecha</th>
@@ -11,19 +7,26 @@
             <th>Importe</th>
             <th>Order ID</th>
             <th>Tipo</th>
+            <th>Acción</th>
         </tr>
     </thead>
     <tbody>
         {% for row in items %}
         <tr>
-            <td>{{ row[0] }}</td>
             <td>{{ row[1] }}</td>
             <td>{{ row[2] }}</td>
             <td>{{ row[3] }}</td>
-            <td>{{ row[4] or '-' }}</td>
-            <td>{{ row[5] }}</td>
+            <td>{{ row[4] }}</td>
+            <td>{{ row[5] or "-" }}</td>
+            <td>{{ row[6] }}</td>
+            <td>
+                {% if not row[5] %}
+                <button class="btn btn-sm btn-info" onclick="abrirModal({{ row[0] }}, '{{ row[3] }}')">Vincular orden</button>
+                {% else %}
+                —
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
-{% endblock %}

@@ -1,5 +1,4 @@
-# app/controllers/purchases/invoices_controller_detail.py
-from flask import Blueprint, render_template, request
+from flask import Blueprint, render_template, request, redirect, flash, jsonify
 from app.db import get_conn
 
 invoices_detail_bp = Blueprint('invoices_suppliers_detail', __name__, url_prefix='/purchases/invoices_suppliers/detail')
@@ -9,15 +8,42 @@ def view(nro_fc):
     conn = get_conn()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT fecha, proveedor, isbn, importe, order_id, tipo_factura
+        SELECT id, fecha, proveedor, isbn, importe, order_id, tipo_factura
         FROM invoices_suppliers
         WHERE nro_fc = %s
     """, (nro_fc,))
     items = cursor.fetchall()
     cursor.close()
+    return render_template('purchases/invoices_suppliers_detail.html', nro_fc=nro_fc, items=items)
 
-    return render_template(
-        'purchases/invoices_suppliers_detail.html',
-        nro_fc=nro_fc,
-        items=items
-    )
+@invoices_detail_bp.route('/buscar_ordenes_por_isbn', methods=['POST'])
+def buscar_ordenes_por_isbn():
+    isbn = request.json.get('isbn')
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT DISTINCT o.order_id, o.created_at, o.total_amount
+        FROM orders o
+        JOIN order_items oi ON o.order_id = oi.order_id
+        WHERE oi.seller_sku = %s
+        ORDER BY o.created_at DESC
+    """, (isbn,))
+    ordenes = cursor.fetchall()
+    cursor.close()
+    return jsonify(ordenes)
+
+@invoices_detail_bp.route('/vincular_orden', methods=['POST'])
+def vincular_orden():
+    item_id = request.form.get('item_id')
+    order_id = request.form.get('order_id')
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE invoices_suppliers
+        SET order_id = %s
+        WHERE id = %s
+    """, (order_id, item_id))
+    conn.commit()
+    cursor.close()
+    flash("Orden vinculada exitosamente", "success")
+    return redirect(request.referrer)
