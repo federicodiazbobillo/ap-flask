@@ -22,9 +22,16 @@ def buscar_ordenes_por_isbn():
     conn = get_conn()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT DISTINCT o.order_id, o.created_at, o.total_amount
+        SELECT DISTINCT 
+            o.order_id, 
+            DATE_FORMAT(o.created_at, '%%d-%%m-%%Y') as fecha,
+            o.total_amount,
+            o.status,
+            s.status AS shipment_status,
+            s.substatus
         FROM orders o
         JOIN order_items oi ON o.order_id = oi.order_id
+        LEFT JOIN shipments s ON o.shipping_id = s.id
         WHERE oi.seller_sku = %s
         ORDER BY o.created_at DESC
     """, (isbn,))
