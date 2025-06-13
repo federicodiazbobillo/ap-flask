@@ -72,9 +72,7 @@ function abrirModal(itemId, isbn) {
                 html += '<label class="list-group-item">';
                 html += '<input class="form-check-input me-1" type="radio" name="order_id" value="' + orden[0] + '" required>';
                 html += '<strong>Orden #' + orden[0] + '</strong> - $' + orden[2] + ' - ' + orden[1];
-                html += ' <span class="badge badge-info">' + ({{ estado_logico(order.status, shipment.status, shipment.substatus) }} || '') + '</span>';
-                html += ' <span class="badge badge-secondary">' + (orden[4] || '') + '</span>';
-                html += ' <span class="badge badge-light">' + (orden[5] || '') + '</span>';
+                html += ' <span class="badge badge-info">' + (orden[3] || '') + '</span>';
                 html += '</label>';
             });
             html += '</div>';

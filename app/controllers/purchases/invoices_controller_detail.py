@@ -42,13 +42,12 @@ def buscar_ordenes_por_isbn():
 
     ordenes = []
     for row in rows:
+        estado = estado_logico(row[3], row[4], row[5])
         ordenes.append([
             row[0],  # order_id
             row[1].strftime('%d-%m-%Y') if row[1] else None,
             row[2],  # total_amount
-            row[3],  # order.status
-            row[4],  # shipment.status
-            row[5],  # shipment.substatus
+            estado
         ])
 
     return jsonify(ordenes)
