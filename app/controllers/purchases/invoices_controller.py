@@ -14,7 +14,7 @@ def index():
             proveedor,
             COUNT(*) AS unidades,
             SUM(importe) AS total_importe
-        FROM facturas_proveedores
+        FROM invoices_suppliers
         GROUP BY nro_fc, fecha, proveedor
         ORDER BY fecha DESC, nro_fc
     """)
