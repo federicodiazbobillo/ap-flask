@@ -96,3 +96,22 @@ def upload_celesa():
     return redirect(request.referrer)
 
 
+@invoices_bp.route('/cambiar_tipo_factura', methods=['POST'])
+def cambiar_tipo_factura():
+    item_id = request.form.get('item_id')
+    nuevo_tipo = request.form.get('nuevo_tipo')
+    if nuevo_tipo not in ['mercaderia', 'envio']:
+        flash("Tipo de factura inválido", "danger")
+        return redirect(request.referrer)
+
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE invoices_suppliers
+        SET tipo_factura = %s
+        WHERE id = %s
+    """, (nuevo_tipo, item_id))
+    conn.commit()
+    cursor.close()
+    flash(f"Tipo de factura actualizado a '{nuevo_tipo}'", "success")
+    return redirect(request.referrer)

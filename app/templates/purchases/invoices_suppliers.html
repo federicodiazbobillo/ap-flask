@@ -34,6 +34,7 @@
             <th>Units</th>
             <th>Total Amount</th>
             <th>Detalle</th>
+            <th>tipo</th>
         </tr>
     </thead>
     <tbody>
@@ -44,6 +45,26 @@
           <td>{{ row[2] }}</td>
           <td>{{ row[4] }} / {{ row[3] }}</td>  <!-- sincronizados / total -->
           <td>€ {{ row[5] | round(2) }}</td>
+          <td>
+            <a href="{{ url_for('invoices_suppliers_detail.view', nro_fc=row[0]) }}" class="btn btn-sm btn-info mb-1">
+                Ver detalle
+            </a>
+
+            {% if row[6] == 'mercaderia' %}
+              <form method="post" action="{{ url_for('invoices_suppliers.cambiar_tipo_factura') }}" style="display:inline;">
+                  <input type="hidden" name="item_id" value="{{ row[7] }}">
+                  <input type="hidden" name="nuevo_tipo" value="envio">
+                  <button type="submit" class="btn btn-sm btn-warning">Marcar como envío</button>
+              </form>
+            {% elif row[6] == 'envio' %}
+              <form method="post" action="{{ url_for('invoices_suppliers.cambiar_tipo_factura') }}" style="display:inline;">
+                  <input type="hidden" name="item_id" value="{{ row[7] }}">
+                  <input type="hidden" name="nuevo_tipo" value="mercaderia">
+                  <button type="submit" class="btn btn-sm btn-secondary">Marcar como mercadería</button>
+              </form>
+            {% endif %}
+          </td>
+
           <td>
               <a href="{{ url_for('invoices_suppliers_detail.view', nro_fc=row[0]) }}" class="btn btn-sm btn-info">
                   Ver detalle
