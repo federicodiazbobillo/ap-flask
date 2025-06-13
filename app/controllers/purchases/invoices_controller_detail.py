@@ -16,7 +16,7 @@ def view(nro_fc):
     items = cursor.fetchall()
     tc = items[0][7] if items else None
     cursor.close()
-    return render_template('purchases/invoices_suppliers_detail.html', nro_fc=nro_fc, items=items)
+    return render_template('purchases/invoices_suppliers_detail.html', nro_fc=nro_fc, items=items, tc=tc)
 
 @invoices_detail_bp.route('/buscar_ordenes_por_isbn', methods=['POST'])
 def buscar_ordenes_por_isbn():
