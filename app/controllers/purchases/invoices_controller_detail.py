@@ -32,7 +32,7 @@ def buscar_ordenes_por_isbn():
             s.substatus,
             oi.id AS order_item_id,
             oi.quantity,
-            COALESCE(SUM(isup.unidades), 0) AS unidades_vinculadas
+            COALESCE(COUNT(isup.id), 0) AS unidades_vinculadas
         FROM orders o
         JOIN order_items oi ON o.order_id = oi.order_id
         LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
