@@ -61,6 +61,7 @@ function abrirModal(itemId, isbn) {
     })
     .then(res => res.json())
     .then(data => {
+        console.log(data);  // 👈 AGREGALO ACÁ
         let html = '<form method="post" action="/purchases/invoices_suppliers/detail/vincular_orden">';
         html += '<input type="hidden" name="item_id" value="' + itemId + '">';
         if (data.length === 0) {
