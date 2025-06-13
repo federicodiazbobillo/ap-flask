@@ -14,10 +14,13 @@ def index():
             proveedor,
             COUNT(*) AS total,
             SUM(CASE WHEN order_id IS NOT NULL THEN 1 ELSE 0 END) AS sincronizados,
-            SUM(importe) AS total_importe
+            SUM(importe) AS total_importe,
+            tipo_factura,
+            MIN(id) AS ejemplo_id
         FROM invoices_suppliers
-        GROUP BY nro_fc, fecha, proveedor
+        GROUP BY nro_fc, fecha, proveedor, tipo_factura
         ORDER BY fecha DESC, nro_fc
+
     """)
     facturas = cursor.fetchall()
     cursor.close()
