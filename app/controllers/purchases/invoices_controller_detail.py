@@ -9,7 +9,7 @@ def view(nro_fc):
     conn = get_conn()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, fecha, proveedor, isbn, importe, order_id, tipo_factura
+        SELECT id, fecha, proveedor, isbn, importe, order_id, tipo_factura,tc
         FROM invoices_suppliers
         WHERE nro_fc = %s
     """, (nro_fc,))
