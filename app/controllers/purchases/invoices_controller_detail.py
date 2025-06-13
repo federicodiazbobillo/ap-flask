@@ -36,7 +36,8 @@ def buscar_ordenes_por_isbn():
         FROM orders o
         JOIN order_items oi ON o.order_id = oi.order_id
         LEFT JOIN shipments s ON o.shipping_id = s.shipping_id
-        LEFT JOIN invoices_suppliers isup ON isup.order_id = o.order_id AND isup.item_id = oi.id
+        LEFT JOIN invoices_suppliers isup 
+            ON isup.order_id = o.order_id AND isup.isbn = oi.seller_sku
         WHERE oi.seller_sku = %s
         GROUP BY o.order_id, oi.id
         ORDER BY o.created_at DESC
