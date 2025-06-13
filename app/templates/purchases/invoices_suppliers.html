@@ -37,20 +37,20 @@
         </tr>
     </thead>
     <tbody>
-        {% for row in facturas %}
-        <tr>
-            <td>{{ row[0] }}</td>
-            <td>{{ row[1] }}</td>
-            <td>{{ row[2] }}</td>
-            <td>{{ row[3] }}</td>
-            <td>{{ row[4] | round(2) }}</td>
-            <td>
-                <a href="{{ url_for('invoices_suppliers_detail.view', nro_fc=row[0]) }}" class="btn btn-sm btn-info">
-                    Ver detalle
-                </a>
-            </td>            
-        </tr>
-        {% endfor %}
+      {% for row in facturas %}
+      <tr>
+          <td>{{ row[0] }}</td>
+          <td>{{ row[1] }}</td>
+          <td>{{ row[2] }}</td>
+          <td>{{ row[4] }} / {{ row[3] }}</td>  <!-- sincronizados / total -->
+          <td>{{ row[5] | round(2) }}</td>
+          <td>
+              <a href="{{ url_for('invoices_suppliers_detail.view', nro_fc=row[0]) }}" class="btn btn-sm btn-info">
+                  Ver detalle
+              </a>
+          </td>            
+      </tr>
+      {% endfor %}
     </tbody>
 </table>
 {% endblock %}

@@ -12,7 +12,8 @@ def index():
             nro_fc,
             fecha,
             proveedor,
-            COUNT(*) AS unidades,
+            COUNT(*) AS total,
+            SUM(CASE WHEN order_id IS NOT NULL THEN 1 ELSE 0 END) AS sincronizados,
             SUM(importe) AS total_importe
         FROM invoices_suppliers
         GROUP BY nro_fc, fecha, proveedor
