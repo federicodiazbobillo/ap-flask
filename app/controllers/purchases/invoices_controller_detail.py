@@ -23,8 +23,8 @@ def buscar_ordenes_por_isbn():
     cursor = conn.cursor()
     cursor.execute("""
         SELECT DISTINCT 
-            o.order_id, 
-            DATE_FORMAT(o.created_at, '%%d-%%m-%%Y') as fecha,
+            o.order_id,
+            o.created_at,
             o.total_amount,
             o.status,
             s.status AS shipment_status,
@@ -35,8 +35,20 @@ def buscar_ordenes_por_isbn():
         WHERE oi.seller_sku = %s
         ORDER BY o.created_at DESC
     """, (isbn,))
-    ordenes = cursor.fetchall()
+    rows = cursor.fetchall()
     cursor.close()
+
+    ordenes = []
+    for row in rows:
+        ordenes.append([
+            row[0],  # order_id
+            row[1].strftime('%d-%m-%Y') if row[1] else None,
+            row[2],  # total_amount
+            row[3],  # order.status
+            row[4],  # shipment.status
+            row[5],  # shipment.substatus
+        ])
+
     return jsonify(ordenes)
 
 @invoices_detail_bp.route('/vincular_orden', methods=['POST'])
