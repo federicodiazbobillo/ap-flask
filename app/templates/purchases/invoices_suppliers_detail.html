@@ -1,3 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Detalle de Factura: {{ nro_fc }}</h3>
+
 <table class="table table-bordered">
     <thead>
         <tr>
@@ -30,3 +34,53 @@
         {% endfor %}
     </tbody>
 </table>
+
+<!-- Modal -->
+<div class="modal fade" id="modalOrdenes" tabindex="-1" role="dialog" aria-labelledby="modalOrdenesLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalOrdenesLabel">Vincular orden</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body" id="modalContenido">
+        <p>Cargando órdenes...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function abrirModal(itemId, isbn) {
+    fetch("/purchases/invoices_suppliers/detail/buscar_ordenes_por_isbn", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isbn })
+    })
+    .then(res => res.json())
+    .then(data => {
+        let html = '<form method="post" action="/purchases/invoices_suppliers/detail/vincular_orden">';
+        html += '<input type="hidden" name="item_id" value="' + itemId + '">';
+        if (data.length === 0) {
+            html += '<p>No se encontraron órdenes con este ISBN.</p>';
+        } else {
+            data.forEach(orden => {
+                html += '<div class="form-check">';
+                html += '<input class="form-check-input" type="radio" name="order_id" value="' + orden[0] + '" required>';
+                html += '<label class="form-check-label">Orden #' + orden[0] + ' - $' + orden[2] + ' - ' + orden[1] + '</label>';
+                html += '</div>';
+            });
+            html += '<button type="submit" class="btn btn-primary mt-3">Vincular</button>';
+        }
+        html += '</form>';
+        document.getElementById("modalContenido").innerHTML = html;
+        $('#modalOrdenes').modal('show');
+    })
+    .catch(err => {
+        document.getElementById("modalContenido").innerHTML = "<p>Error al buscar órdenes.</p>";
+    });
+}
+</script>
+{% endblock %}
