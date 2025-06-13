@@ -61,23 +61,40 @@ function abrirModal(itemId, isbn) {
     })
     .then(res => res.json())
     .then(data => {
-        console.log(data);  // 👈 AGREGALO ACÁ
         let html = '<form method="post" action="/purchases/invoices_suppliers/detail/vincular_orden">';
         html += '<input type="hidden" name="item_id" value="' + itemId + '">';
+
         if (data.length === 0) {
             html += '<p>No se encontraron órdenes con este ISBN.</p>';
         } else {
             html += '<div class="list-group">';
             data.forEach(orden => {
-                html += '<label class="list-group-item">';
-                html += '<input class="form-check-input me-1" type="radio" name="order_id" value="' + orden[0] + '" required>';
-                html += '<strong>Orden #' + orden[0] + '</strong> - $' + orden[2] + ' - ' + orden[1];
-                html += ' <span class="badge badge-info">' + (orden[3] || '') + '</span>';
+                const disponibles = orden.quantity - orden.vinculadas;
+                const deshabilitado = disponibles <= 0;
+
+                html += '<label class="list-group-item d-flex justify-content-between align-items-center' +
+                        (deshabilitado ? ' text-muted' : '') + '">';
+
+                if (!deshabilitado) {
+                    html += '<input class="form-check-input me-2" type="radio" name="order_id" value="' + orden.order_id + '" required>';
+                }
+
+                html += '<div>';
+                html += '<strong>Orden #' + orden.order_id + '</strong>';
+                html += ' - $' + orden.total + ' - ' + orden.fecha;
+                html += '<br><span class="badge badge-info">' + orden.estado + '</span>';
+                html += '<span class="badge badge-secondary">SKU ' + orden.vinculadas + ' / ' + orden.quantity + '</span>';
+                if (deshabilitado) {
+                    html += '<span class="badge badge-danger">Sin unidades disponibles</span>';
+                }
+                html += '</div>';
+
                 html += '</label>';
             });
             html += '</div>';
             html += '<button type="submit" class="btn btn-primary mt-3">Vincular</button>';
         }
+
         html += '</form>';
         document.getElementById("modalContenido").innerHTML = html;
         $('#modalOrdenes').modal('show');
@@ -87,4 +104,3 @@ function abrirModal(itemId, isbn) {
     });
 }
 </script>
-{% endblock %}
