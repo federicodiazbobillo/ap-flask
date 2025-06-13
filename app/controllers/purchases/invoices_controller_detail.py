@@ -14,6 +14,7 @@ def view(nro_fc):
         WHERE nro_fc = %s
     """, (nro_fc,))
     items = cursor.fetchall()
+    tc = items[0][7] if items else None
     cursor.close()
     return render_template('purchases/invoices_suppliers_detail.html', nro_fc=nro_fc, items=items)
 
@@ -90,4 +91,20 @@ def desvincular_orden():
     conn.commit()
     cursor.close()
     flash("Orden desvinculada correctamente", "info")
+    return redirect(request.referrer)
+
+@invoices_detail_bp.route('/actualizar_tc_factura', methods=['POST'])
+def actualizar_tc_factura():
+    nro_fc = request.form.get('nro_fc')
+    tc = request.form.get('tc')
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("""
+        UPDATE invoices_suppliers
+        SET tc = %s
+        WHERE nro_fc = %s
+    """, (tc, nro_fc))
+    conn.commit()
+    cursor.close()
+    flash("Tipo de cambio de la factura actualizado", "success")
     return redirect(request.referrer)
