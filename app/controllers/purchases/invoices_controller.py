@@ -68,7 +68,7 @@ def upload_celesa():
     conn = get_conn()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT nro_fc FROM facturas_proveedores WHERE nro_fc IN %s",
+        "SELECT nro_fc FROM invoices_suppliers WHERE nro_fc IN %s",
         (tuple(df['nro_fc'].unique()),)
     )
     existing = set(row[0] for row in cursor.fetchall())
@@ -84,7 +84,7 @@ def upload_celesa():
     # Insertar registros
     for _, row in df_expanded.iterrows():
         cursor.execute("""
-            INSERT INTO facturas_proveedores (proveedor, nro_fc, fecha, isbn, importe, order_id)
+            INSERT INTO invoices_suppliers (proveedor, nro_fc, fecha, isbn, importe, order_id)
             VALUES (%s, %s, %s, %s, %s, %s)
         """, (row.proveedor, row.nro_fc, row.fecha, row.isbn, row.importe, row.order_id))
 
