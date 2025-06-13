@@ -1,5 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, flash, jsonify
 from app.db import get_conn
+from app.utils.order_status import estado_logico
+
 
 invoices_detail_bp = Blueprint('invoices_suppliers_detail', __name__, url_prefix='/purchases/invoices_suppliers/detail')
 
