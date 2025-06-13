@@ -74,7 +74,7 @@ def vincular_orden():
     """, (order_id, item_id))
     conn.commit()
     cursor.close()
-    flash("Orden vinculada exitosamente", "success")
+    #flash("Orden vinculada exitosamente", "success")
     return redirect(request.referrer)
 
 
