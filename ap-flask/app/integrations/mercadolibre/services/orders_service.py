@@ -1,0 +1,205 @@
+import requests
+import time
+from app.db import get_conn
+from .shipments_service import guardar_envios
+from app.integrations.mercadolibre.services.token_service import verificar_meli
+
+def obtener_ordenes(_, __, date_from=None, date_to=None):
+    ordenes = []
+    offset = 0
+    limit = 50
+
+    while True:
+        time.sleep(0.1)  # 🕒 evitar saturación
+
+        # 🔄 Verificar token antes de cada llamada
+        access_token, user_id, error = verificar_meli()
+        if error:
+            return {
+                "error": True,
+                "message": f"❌ Error de token: {error}"
+            }
+
+        headers = {
+            "Authorization": f"Bearer {access_token}"
+        }
+
+        params = {
+            "seller": user_id,
+            "limit": limit,
+            "offset": offset,
+            "sort": "date_desc"
+        }
+
+        if date_from:
+            params["order.date_created.from"] = date_from
+        if date_to:
+            params["order.date_created.to"] = date_to
+
+        response = requests.get("https://api.mercadolibre.com/orders/search", headers=headers, params=params)
+        if response.status_code != 200:
+            return {
+                "error": True,
+                "message": f"HTTP {response.status_code}: {response.text}"
+            }
+
+        data = response.json()
+        batch = data.get("results", [])
+        if not batch:
+            break
+
+        ordenes.extend(batch)
+        offset += len(batch)
+
+    guardar_ordenes_en_db(ordenes, user_meli_id=user_id)
+
+    # 🔄 volver a verificar token para guardar envíos
+    access_token, _, error = verificar_meli()
+    if error:
+        return {
+            "error": True,
+            "message": f"❌ Error de token al guardar envíos: {error}"
+        }
+
+    shipping_ids = [orden.get("shipping", {}).get("id") for orden in ordenes if orden.get("shipping")]
+    guardar_envios(shipping_ids, access_token)
+
+    return {
+        "error": False,
+        "ordenes": ordenes
+    }
+
+
+
+
+
+def guardar_ordenes_en_db(ordenes, user_meli_id=None):
+    conn = get_conn()
+    cursor = conn.cursor()
+
+    for orden in ordenes:
+        try:
+            order_id = orden.get("id")
+            created_at = orden.get("date_created")
+            last_updated = orden.get("last_updated")
+            pack_id = orden.get("pack_id")
+            total_amount = orden.get("total_amount")
+            status = orden.get("status")
+            manufacturing_ending_date = orden.get("manufacturing_ending_date")
+            shipping_id = orden.get("shipping", {}).get("id")
+
+            if not order_id or not created_at:
+                continue
+            print(f"Sincronizando {order_id} ")        
+            cursor.execute("""
+                INSERT INTO orders (
+                    order_id, created_at, last_updated, pack_id,
+                    total_amount, status, manufacturing_ending_date, shipping_id, user_meli_id
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE
+                    last_updated = VALUES(last_updated),
+                    pack_id = VALUES(pack_id),
+                    total_amount = VALUES(total_amount),
+                    status = VALUES(status),
+                    manufacturing_ending_date = VALUES(manufacturing_ending_date),
+                    shipping_id = VALUES(shipping_id),
+                    user_meli_id = VALUES(user_meli_id)
+            """, (
+                order_id, created_at, last_updated, pack_id,
+                total_amount, status, manufacturing_ending_date, shipping_id, user_meli_id
+            ))
+
+            for item in orden.get("order_items", []):
+                item_id = item.get("item", {}).get("id")
+                seller_sku = item.get("item", {}).get("seller_sku")
+                quantity = item.get("quantity")
+                manufacturing_days = item.get("manufacturing_days")
+                sale_fee = item.get("sale_fee")
+
+                if not item_id:
+                    continue
+
+                cursor.execute("""
+                    SELECT 1 FROM order_items
+                    WHERE order_id = %s AND item_id = %s
+                """, (order_id, item_id))
+
+                existe = cursor.fetchone()
+
+                if existe:
+                    cursor.execute("""
+                        UPDATE order_items
+                        SET seller_sku = %s,
+                            quantity = %s,
+                            manufacturing_days = %s,
+                            sale_fee = %s
+                        WHERE order_id = %s AND item_id = %s
+                    """, (
+                        seller_sku, quantity, manufacturing_days, sale_fee,
+                        order_id, item_id
+                    ))
+                else:
+                    cursor.execute("""
+                        INSERT INTO order_items (
+                            order_id, item_id, seller_sku, quantity,
+                            manufacturing_days, sale_fee
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s)
+                    """, (
+                        order_id, item_id, seller_sku,
+                        quantity, manufacturing_days, sale_fee
+                    ))
+
+            conn.commit()  # ✅ Se libera el lock por orden
+        except Exception as e:
+            conn.rollback()
+            print(f"❌ Error al insertar orden {orden.get('id')}: {e}")
+
+    cursor.close()
+
+
+
+def obtener_orden_por_id(access_token, order_id):
+
+    # Primer intento: buscar como ID de orden
+    url_orden = f"https://api.mercadolibre.com/orders/{order_id}"
+    
+    # 🔄 Verificar y renovar token antes de cada request
+    access_token, user_id, error = verificar_meli()
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+       
+    response = requests.get(url_orden, headers=headers)
+
+    if response.status_code == 200:
+        return response.json()
+
+    # Si no existe como orden, intentar como pack_id
+    if response.status_code == 404:
+        url_pack = f"https://api.mercadolibre.com/packs/{order_id}"
+        resp_pack = requests.get(url_pack, headers=headers)
+
+        if resp_pack.status_code == 200:
+            data = resp_pack.json()
+            ordenes = data.get("orders", [])
+            if ordenes:
+                real_order_id = ordenes[0].get("id")
+                # Segundo intento con el ID real
+                response2 = requests.get(f"https://api.mercadolibre.com/orders/{real_order_id}", headers=headers)
+                if response2.status_code == 200:
+                    return response2.json()
+                else:
+                    print(f"❌ Error al obtener orden desde pack {real_order_id}: {response2.status_code}")
+                    return None
+        else:
+            print(f"❌ Error al buscar como pack_id {order_id}: {resp_pack.status_code}")
+            return None
+
+    print(f"❌ Error desconocido al buscar orden {order_id}: {response.status_code}")
+    return None
+
+
+

@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+  /* Aplica sólo a la tabla de logística */
+  #tabla-logistica {
+    width: 100%;
+    font-size: 0.8rem;
+  }
+  /* Texto más pequeño para filtros */
+  .logistica-filters {
+    font-size: 0.8rem;
+  }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h2>Logística</h2>
+  <form class="form-inline logistica-filters" style="font-size:0.8rem;" method="get" action="{{ url_for('orders_logistica.index_logistica') }}">
+    <div class="input-group mb-2 mr-2">
+      <label for="id" class="form-label mr-1">ID Orden/Paq:</label>
+      <input type="text" class="form-control" id="id" name="id" placeholder="ID de orden o pack" value="{{ filtro_id or '' }}">
+    </div>
+    <div class="form-group mb-2 mr-2">
+      <label for="fecha-desde" class="form-label mr-1">Creación desde:</label>
+      <input type="date" class="form-control" id="fecha-desde" name="fecha_desde" value="{{ filtro_fecha_desde or '' }}">
+    </div>
+    <div class="form-group mb-2 mr-2">
+      <label for="fecha-hasta" class="form-label mr-1">Creación hasta:</label>
+      <input type="date" class="form-control" id="fecha-hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta or '' }}">
+    </div>
+    <div class="form-group mb-2 mr-2">
+      <label for="venc-desde" class="form-label mr-1">Venc. desde:</label>
+      <input type="date" class="form-control" id="venc-desde" name="venc_desde" value="{{ filtro_venc_desde or '' }}">
+    </div>
+    <div class="form-group mb-2 mr-2">
+      <label for="venc-hasta" class="form-label mr-1">Venc. hasta:</label>
+      <input type="date" class="form-control" id="venc-hasta" name="venc_hasta" value="{{ filtro_venc_hasta or '' }}">
+    </div>
+    <button type="submit" class="btn btn-outline-info mb-2">🔍 Buscar</button>
+    <a href="{{ url_for('orders_logistica.index_logistica') }}" class="btn btn-outline-secondary mb-2">🧹 Limpiar filtros</a>
+  </form>
+</div>
+
+{# Mostrar total de registros #}
+<p><strong>Total de registros:</strong> {{ ordenes|length }}</p>
+
+<div class="table-responsive">
+  <table class="table table-bordered table-striped table-hover nowrap w-100" id="tabla-logistica">
+    <thead class="thead-dark">
+      <tr>
+        <th>ID Orden</th>
+        <th>Creación</th>
+        <th>Vencimiento</th>
+        <th>Estado / Envío</th>
+        <th>Guia</th>
+        <th>Nota</th>
+        <th>Items</th>
+      </tr>
+    </thead>
+    <tbody> 
+      {% for orden in ordenes %}
+      <tr>
+        <td>{{ orden.reference_id }}</td>
+        <td>{{ orden.created_at }}</td>
+        <td>
+          {% if orden.manufacturing_ending_date != 'Entrega inmediata' %}
+            {{ orden.manufacturing_ending_date }}
+          {% else %}
+            Entrega inmediata
+          {% endif %}
+        </td>
+        <td>{{ orden.status }} / {{ orden.shipping_status }}</td>
+        <td>{{ orden.guia or '-' }}</td>
+        <td>{{ orden.nota or '-' }}</td>
+        <td>
+          {% if orden['items'] %}
+          <table class="table table-sm table-bordered mb-0">
+            <thead class="bg-light">
+              <tr>
+                <th>ID</th>
+                <th>SKU</th>
+                <th>Cant.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in orden['items'] %}
+              <tr>
+                <td>{{ item.item_id }}</td>
+                <td>{{ item.seller_sku or '-' }}</td>
+                <td>
+                  <span class="{% if item.quantity > 1 %}font-weight-bold text-danger{% endif %}">{{ item.quantity }}</span>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% else %}
+            -
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
