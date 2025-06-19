@@ -116,6 +116,19 @@
                 <span>Cerrar sesión</span>
             </a>
         </li-->
+        <li class="nav-item">
+            <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseItems"
+                aria-expanded="true" aria-controls="collapseItems">
+                <i class="fas fa-box-open"></i>
+                <span>Items</span>
+            </a>
+            <div id="collapseItems" class="collapse" aria-labelledby="headingItems" data-parent="#accordionSidebar">
+                <div class="bg-white py-2 collapse-inner rounded">
+                    <a class="collapse-item" href="{{ url_for('items_meli_bp.items') }}">Mercado Libre</a>
+                </div>
+            </div>
+        </li>
+
     </ul>
     
 
