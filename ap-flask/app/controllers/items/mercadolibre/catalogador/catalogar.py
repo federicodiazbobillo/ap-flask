@@ -1,9 +1,9 @@
-from flask import request, redirect, url_for, flash
+from flask import Request, request, redirect, url_for, flash
 from app.db import get_conn
 from app.integrations.mercadolibre.services.token_service import verificar_meli
 import requests
 
-def procesar_catalogacion(req: request):
+def procesar_catalogacion(req: Request):
     seleccionados = req.form.getlist("selected_items")
 
     if not seleccionados:
@@ -46,16 +46,16 @@ def procesar_catalogacion(req: request):
                         continue
 
                     cursor.execute("""
-                        INSERT IGNORE INTO items_meli (idml, catalog_product_id, catalog_listing, created_by, validado)
-                        VALUES (%s, %s, 'true', 'catalogar_items', 1)
-                    """, (nuevo_idml, catalog_product_id))
+                        INSERT IGNORE INTO items_meli (idml, catalog_product_id, item_relations, catalog_listing, validado)
+                        VALUES (%s, %s, %s, 'true', 1)
+                    """, (nuevo_idml, catalog_product_id, idml))
 
                     cursor.execute("""
                         UPDATE items_meli
                         SET item_relations = %s,
                             validado = 1
                         WHERE idml = %s
-                    """, (nuevo_idml, idml))
+                    """, (nuevo_idml, idml)) 
 
                     exitos += 1
                 else:

@@ -1,11 +1,11 @@
-from flask import request, flash
+from flask import Request, request, flash
 from app.db import get_conn
 from app.integrations.openia.image_checker import analizar_imagen_con_ia
 from app.integrations.mercadolibre.services.token_service import verificar_meli
 from .check_text import validar_campos_textuales_meli
 import requests
 
-def obtener_items(req: request) -> dict:
+def obtener_items(req: Request) -> dict:
     page = int(req.args.get('page', 1))
     limit = int(req.args.get('limit', 50))
     offset = (page - 1) * limit
