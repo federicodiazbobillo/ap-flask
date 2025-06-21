@@ -1,11 +1,10 @@
 from flask import Request, request, flash
 from app.db import get_conn
 from app.integrations.openia.image_checker import analizar_imagen_con_ia
-from app.integrations.mercadolibre.services.token_service import verificar_meli
 from .check_text import validar_campos_textuales_meli
 import requests
 
-def obtener_items(req: Request) -> dict:
+def obtener_items(req: Request, access_token: str) -> dict:
     page = int(req.args.get('page', 1))
     limit = int(req.args.get('limit', 50))
     offset = (page - 1) * limit
@@ -97,10 +96,24 @@ def obtener_items(req: Request) -> dict:
         cursor.execute(count_query, count_params)
         total = cursor.fetchone()[0]
 
-    access_token, user_id, error = verificar_meli()
-    if error:
-        print("❌ Error de token:", error)
-        return {'items': [], 'total': 0, 'page': page, 'limit': limit}
+    # 🧠 Multi-get para los items
+    idmls = [row[0] for row in rows]
+    items_meli_api = {}
+    if idmls:
+        headers = {"Authorization": f"Bearer {access_token}"}
+        ids_chunk = [idmls[i:i+20] for i in range(0, len(idmls), 20)]
+        for chunk in ids_chunk:
+            ids_str = ','.join(chunk)
+            multiget_resp = requests.get(
+                f"https://api.mercadolibre.com/items?ids={ids_str}",
+                headers=headers,
+                timeout=10
+            )
+            if multiget_resp.ok:
+                for res in multiget_resp.json():
+                    body = res.get("body", {})
+                    if body:
+                        items_meli_api[body.get("id")] = body
 
     for row in rows:
         (
@@ -108,8 +121,7 @@ def obtener_items(req: Request) -> dict:
             item_relations, catalog_listing, catalog_listing_eligible
         ) = row
 
-        title, thumbnail, catalog_image = None, None, None
-
+        title, thumbnail, catalog_image, permalink = None, None, None, None
         no_es_catalogable = (
             catalog_product_id is None and str(catalog_listing).lower() == 'false' and (item_relations is None or item_relations == '')
         )
@@ -118,13 +130,11 @@ def obtener_items(req: Request) -> dict:
         datos_contacto = []
         validado_ia_ahora = False
         contacto_detectado_textual = False
-        permalink = None
+        bloqueado_catalogo = False
 
         try:
-            item_url = f"https://api.mercadolibre.com/items/{idml}?access_token={access_token}"
-            response = requests.get(item_url, timeout=5)
-            if response.ok:
-                data = response.json()
+            data = items_meli_api.get(idml)
+            if data:
                 title = data.get("title")
                 thumbnail = data.get("thumbnail")
                 permalink = data.get("permalink")
@@ -162,23 +172,29 @@ def obtener_items(req: Request) -> dict:
                                 catalog_image = pictures[0].get("url")
                         else:
                             children = cat_data.get("children_ids", [])
-                            if isinstance(children, list) and len(children) == 1:
-                                child_id = children[0]
+                            hijos_activos = []
+
+                            for child_id in children:
                                 child_url = f"https://api.mercadolibre.com/products/{child_id}?access_token={access_token}"
                                 child_resp = requests.get(child_url, timeout=5)
                                 if child_resp.ok:
                                     child_data = child_resp.json()
                                     if child_data.get("status") == "active":
-                                        catalog_product_id = child_id
-                                        pictures = child_data.get("pictures", [])
-                                        if pictures:
-                                            catalog_image = pictures[0].get("url")
-                                    else:
-                                        catalog_image = "varios"
-                                else:
-                                    catalog_image = "varios"
+                                        hijos_activos.append(child_id)
+
+                            if len(hijos_activos) == 1:
+                                catalog_product_id = hijos_activos[0]
+                                child_url = f"https://api.mercadolibre.com/products/{catalog_product_id}?access_token={access_token}"
+                                child_resp = requests.get(child_url, timeout=5)
+                                if child_resp.ok:
+                                    pictures = child_resp.json().get("pictures", [])
+                                    if pictures:
+                                        catalog_image = pictures[0].get("url")
                             else:
                                 catalog_image = "varios"
+                                bloqueado_catalogo = True
+                    else:
+                        bloqueado_catalogo = True
 
         except Exception as e:
             print(f"⚠️ Error al consultar {idml}: {e}")
@@ -198,7 +214,8 @@ def obtener_items(req: Request) -> dict:
             'catalogable': catalogable,
             'datos_contacto': datos_contacto,
             'contacto_detectado_textual': bool(contacto_detectado_textual),
-            'validado_ia_ahora': validado_ia_ahora
+            'validado_ia_ahora': validado_ia_ahora,
+            'bloqueado_catalogo': bloqueado_catalogo
         })
 
     return {

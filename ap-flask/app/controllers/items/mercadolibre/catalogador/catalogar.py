@@ -1,18 +1,12 @@
-from flask import Request, request, redirect, url_for, flash
+from flask import Request, redirect, url_for, flash
 from app.db import get_conn
-from app.integrations.mercadolibre.services.token_service import verificar_meli
 import requests
 
-def procesar_catalogacion(req: Request):
+def procesar_catalogacion(req: Request, access_token: str):
     seleccionados = req.form.getlist("selected_items")
 
     if not seleccionados:
         flash("No se seleccionaron productos para catalogar.", "warning")
-        return redirect(url_for("catalogador_bp.items"))
-
-    access_token, user_id, error = verificar_meli()
-    if error:
-        flash(f"Error de token: {error}", "danger")
         return redirect(url_for("catalogador_bp.items"))
 
     conn = get_conn()
@@ -46,16 +40,16 @@ def procesar_catalogacion(req: Request):
                         continue
 
                     cursor.execute("""
-                        INSERT IGNORE INTO items_meli (idml, catalog_product_id, item_relations, catalog_listing, validado)
-                        VALUES (%s, %s, %s, 'true', 1)
-                    """, (nuevo_idml, catalog_product_id, idml))
+                        INSERT IGNORE INTO items_meli (idml, catalog_product_id, catalog_listing, validado)
+                        VALUES (%s, %s, 'true', 1)
+                    """, (nuevo_idml, catalog_product_id))
 
                     cursor.execute("""
                         UPDATE items_meli
                         SET item_relations = %s,
                             validado = 1
                         WHERE idml = %s
-                    """, (nuevo_idml, idml)) 
+                    """, (nuevo_idml, idml))
 
                     exitos += 1
                 else:
