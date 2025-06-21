@@ -14,9 +14,10 @@ def analizar_imagen_con_ia(url_imagen):
                 {
                     "role": "system",
                     "content": (
-                        "Detectá si en esta imagen aparecen datos de contacto, como números de teléfono, correos electrónicos, "
-                        "ubicaciones físicas, URLs o redes sociales. Incluí texto que comience con '@' y símbolos como 'a' dentro de un círculo. "
-                        "Respondé con 'Sí' o 'No'. Si es 'Sí', listá los datos encontrados."
+                        "Analizá esta imagen con atención al detalle. Buscá si contiene datos de contacto, como números de teléfono, correos electrónicos, ubicaciones físicas, URLs, redes sociales o códigos QR, aunque estén parcial o visualmente integrados. "
+                        "Incluí cualquier texto que comience con '@', íconos o símbolos como una 'a' dentro de un círculo (como ⓐ o Ⓐ), o cualquier otra forma visual que sugiera un correo electrónico. "
+                        "Detectá también códigos QR aunque estén integrados en ilustraciones o decoraciones. "
+                        "Si la imagen contiene alguno de estos elementos, respondé con 'Sí'. Si la respuesta es 'Sí', listá los datos encontrados o mencioná claramente que hay un QR. Caso contrario, respondé 'No'."
                     )
                 },
                 {

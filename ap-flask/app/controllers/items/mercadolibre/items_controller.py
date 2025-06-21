@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request,redirect, url_for, flash
 from app.db import get_conn
+from .check_text import validar_campos_textuales_meli
 from app.integrations.openia.image_checker import analizar_imagen_con_ia
 from app.integrations.mercadolibre.services.token_service import verificar_meli
 import requests
@@ -20,12 +21,12 @@ def items():
     filter_tags = request.args.getlist('tags')
     status = request.args.get("status", None)
     validado = request.args.get("validado")
-    catalogable_filter = request.args.get("catalogable")
+    
 
     items = []
     total = 0
 
-    if not filter_tags and not status and validado not in ('0', '1') and catalogable_filter not in ('0', '1'):
+    if not filter_tags and not status and validado not in ('0', '1'):
         flash("Aplicá al menos un filtro para buscar ítems.", "info")
         return render_template(
             'items/mercadolibre/items.html',
@@ -44,7 +45,10 @@ def items():
             FROM items_meli m
             JOIN item_meli_tags t ON t.item_idml = m.idml
         """
-        base_where = ["m.catalog_listing = 'false'"]
+        base_where = [
+            "m.catalog_listing = 'false'",
+            "t.tag = 'catalog_listing_eligible'"
+        ]
         query_params = []
 
         if filter_tags:
@@ -59,21 +63,6 @@ def items():
         if validado in ("0", "1"):
             base_where.append("m.validado = %s")
             query_params.append(int(validado))
-
-        if catalogable_filter == '1':
-            base_where.append("""
-                NOT (
-                    m.catalog_product_id IS NULL 
-                    AND m.catalog_listing = 'false' 
-                    AND (m.item_relations IS NULL OR m.item_relations = '')
-                )
-            """)
-        elif catalogable_filter == '0':
-            base_where.append("""
-                m.catalog_product_id IS NULL 
-                AND m.catalog_listing = 'false' 
-                AND (m.item_relations IS NULL OR m.item_relations = '')
-            """)
 
         if base_where:
             base_query += " WHERE " + " AND ".join(base_where)
@@ -94,7 +83,10 @@ def items():
             FROM items_meli m
             JOIN item_meli_tags t ON t.item_idml = m.idml
         """
-        count_where = ["m.catalog_listing = 'false'"]
+        count_where = [
+            "m.catalog_listing = 'false'",
+            "t.tag = 'catalog_listing_eligible'"
+        ]
         count_params = []
 
         if filter_tags:
@@ -109,21 +101,6 @@ def items():
         if validado in ("0", "1"):
             count_where.append("m.validado = %s")
             count_params.append(int(validado))
-
-        if catalogable_filter == '1':
-            count_where.append("""
-                NOT (
-                    m.catalog_product_id IS NULL 
-                    AND m.catalog_listing = 'false' 
-                    AND (m.item_relations IS NULL OR m.item_relations = '')
-                )
-            """)
-        elif catalogable_filter == '0':
-            count_where.append("""
-                m.catalog_product_id IS NULL 
-                AND m.catalog_listing = 'false' 
-                AND (m.item_relations IS NULL OR m.item_relations = '')
-            """)
 
         if count_where:
             count_query += " WHERE " + " AND ".join(count_where)
@@ -157,6 +134,8 @@ def items():
         )
         catalogable = not no_es_catalogable
 
+        datos_contacto = []
+        validado_ia_ahora = False
         try:
             item_url = f"https://api.mercadolibre.com/items/{idml}?access_token={access_token}"
             response = requests.get(item_url, timeout=5)
@@ -164,6 +143,32 @@ def items():
                 data = response.json()
                 title = data.get("title")
                 thumbnail = data.get("thumbnail")
+                permalink = data.get("permalink")
+                contacto_detectado_textual = validar_campos_textuales_meli(data)
+                # Solo analizar imágenes si no está validado
+                if validado == 0:
+                    pictures = data.get("pictures", [])
+                    for pic in pictures:
+                        image_url = pic.get("url")
+                        if image_url:
+                            print(f"🧠 Validando imágenes IA para: {idml}")
+                            resultado = analizar_imagen_con_ia(image_url)
+                            if resultado.lower().startswith("sí"):
+                                datos_contacto.append({"url": image_url, "resultado": resultado})
+
+                    # Si no hay datos de contacto, actualizar validado = 2
+                    validado_ia_ahora = False  # valor por defecto
+                    if not datos_contacto:
+                        try:
+                            with conn.cursor() as cursor:
+                                cursor.execute(
+                                    "UPDATE items_meli SET validado = 2 WHERE idml = %s", (idml,)
+                                )
+                            conn.commit()
+                            validado = 2
+                            validado_ia_ahora = True  # ✅ se validó ahora
+                        except Exception as e:
+                            print(f"⚠️ Error al actualizar validado=2 para {idml}: {e}")
 
                 # Solo consultar /products si es catalogable
                 if catalogable and catalog_product_id:
@@ -171,11 +176,38 @@ def items():
                     cat_resp = requests.get(catalog_url, timeout=5)
                     if cat_resp.ok:
                         cat_data = cat_resp.json()
-                        pictures = cat_data.get("pictures", [])
-                        if pictures:
-                            catalog_image = pictures[0].get("url")
+                        status_catalog = cat_data.get("status")
+
+                        if status_catalog == "active":
+                            pictures = cat_data.get("pictures", [])
+                            if pictures:
+                                catalog_image = pictures[0].get("url")
+                        else:
+                            children = cat_data.get("children_ids", [])
+                            if isinstance(children, list) and len(children) == 1:
+                                child_id = children[0]
+                                child_url = f"https://api.mercadolibre.com/products/{child_id}?access_token={access_token}"
+                                child_resp = requests.get(child_url, timeout=5)
+                                if child_resp.ok:
+                                    child_data = child_resp.json()
+                                    if child_data.get("status") == "active":
+                                        catalog_product_id = child_id  # ✅ actualizar
+                                        pictures = child_data.get("pictures", [])
+                                        if pictures:
+                                            catalog_image = pictures[0].get("url")
+                                    else:
+                                        catalog_image = "varios"  # hijo inactivo
+                                else:
+                                    catalog_image = "varios"  # error al obtener hijo
+                            else:
+                                catalog_image = "varios"  # más de un hijo
+
+
+
         except Exception as e:
             print(f"⚠️ Error al consultar {idml}: {e}")
+        
+        print(f"🔍 [{idml}] contacto_detectado_textual:", contacto_detectado_textual, type(contacto_detectado_textual))
 
         items.append({
             'idml': idml,
@@ -184,11 +216,15 @@ def items():
             'thumbnail': thumbnail,
             'catalog_image': catalog_image,
             'validado': validado,
+            'permalink' : permalink,
             'catalog_product_id': catalog_product_id,
             'item_relations': item_relations,
             'catalog_listing': catalog_listing,
             'catalog_listing_eligible': catalog_listing_eligible,
-            'catalogable': catalogable
+            'catalogable': catalogable,
+            'datos_contacto': datos_contacto,
+            'contacto_detectado_textual': bool(contacto_detectado_textual),
+            'validado_ia_ahora': validado_ia_ahora 
         })
 
     return render_template(

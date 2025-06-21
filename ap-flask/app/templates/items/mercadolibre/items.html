@@ -7,7 +7,7 @@
   <div class="col-md-6">
     <label class="form-label">Tags</label><br>
     {% set selected_tags = request.args.getlist('tags') %}
-    {% for tag in ['moderation_penalty', 'poor_quality_picture', 'out_of_stock', 'catalog_listing_eligible'] %}
+    {% for tag in ['moderation_penalty', 'poor_quality_picture', 'out_of_stock'] %}
       <div class="form-check form-check-inline">
         <input class="form-check-input" type="checkbox" name="tags" value="{{ tag }}" id="tag_{{ tag }}"
                {% if tag in selected_tags %}checked{% endif %}>
@@ -46,25 +46,7 @@
     <label class="form-check-label" for="val_1">Validados</label>
   </div>
 </div>
-<div class="col-md-4">
-  <label class="form-label d-block">¿Es catalogable?</label>
-  {% set catalogable_filter = request.args.get('catalogable') %}
-  <div class="form-check form-check-inline">
-    <input class="form-check-input" type="radio" name="catalogable" id="catalogable_all" value=""
-           {% if catalogable_filter == None or catalogable_filter == '' %}checked{% endif %}>
-    <label class="form-check-label" for="catalogable_all">Todos</label>
-  </div>
-  <div class="form-check form-check-inline">
-    <input class="form-check-input" type="radio" name="catalogable" id="catalogable_yes" value="1"
-           {% if catalogable_filter == '1' %}checked{% endif %}>
-    <label class="form-check-label" for="catalogable_yes">Sí</label>
-  </div>
-  <div class="form-check form-check-inline">
-    <input class="form-check-input" type="radio" name="catalogable" id="catalogable_no" value="0"
-           {% if catalogable_filter == '0' %}checked{% endif %}>
-    <label class="form-check-label" for="catalogable_no">No</label>
-  </div>
-</div>
+
 <div class="col-md-2">
   <label for="limit" class="form-label">Resultados por página</label>
   <select name="limit" id="limit" class="form-select">
@@ -98,19 +80,27 @@
   {% for item in items %}
   <tr>
     <td>
-      {% if item.catalogable %}
-        <input type="checkbox"
-               name="selected_items"
-               value="{{ item.idml }}"
-               {% if item.validado == 1 %}checked{% endif %}>
-        <input type="hidden" name="catalog_product_id_{{ item.idml }}" value="{{ item.catalog_product_id }}">
-      {% else %}
-        <input type="checkbox"
-               disabled
-               title="No es catalogable"
-               class="form-check-input">
-      {% endif %}
-    </td>        
+
+  {% if item.catalogable %}
+    {% if item.datos_contacto %}
+      <span class="text-danger fw-bold" title="No se puede catalogar: IA detectó datos de contacto en la imagen">🚫</span>
+    {% elif item.contacto_detectado_textual %}
+      <span class="text-danger fw-bold" title="No se puede catalogar: texto contiene datos de contacto">🚫</span>
+    {% else %}
+      <input type="checkbox"
+             name="selected_items"
+             value="{{ item.idml }}"
+             checked>
+      <input type="hidden" name="catalog_product_id_{{ item.idml }}" value="{{ item.catalog_product_id }}">
+    {% endif %}
+  {% else %}
+    <span class="text-muted" title="No es catalogable">🚫</span>
+  {% endif %}
+</td>
+
+
+
+           
     <td>
       <a href="https://www.mercadolibre.com.mx/publicaciones/listado?search={{ item.idml }}"
          target="_blank" rel="noopener noreferrer">
@@ -120,28 +110,43 @@
     <td>{{ item.isbn }}</td>
     <td>{{ item.title or '-' }}</td>
     <td>
-      {% if item.thumbnail %}
-        <img src="{{ item.thumbnail }}" alt="Imagen actual"
-             class="img-thumbnail" style="max-height: 100px;">
-      {% else %}
-        <span class="text-muted">Sin imagen</span>
-      {% endif %}
+        {% if item.thumbnail %}
+            <a href="{{ item.permalink }}" target="_blank" title="Ver publicación en Mercado Libre">
+            <img src="{{ item.thumbnail }}" alt="Imagen actual"
+                class="img-thumbnail" style="max-height: 100px;">
+            </a>
+        {% else %}
+            <span class="text-muted">Sin imagen</span>
+        {% endif %}
+    </td>
+
+    <td>
+        {% if item.catalog_image and item.catalog_image != 'varios' %}
+            <a href="{{ item.catalog_image }}" target="_blank" title="Ver imagen catálogo">
+            <img src="{{ item.catalog_image }}" alt="Imagen catálogo"
+                class="img-thumbnail" style="max-height: 100px;">
+            </a>
+        {% elif item.catalog_image == 'varios' %}
+            <span class="badge bg-warning text-dark">Varios registros</span>
+        {% else %}
+            <span class="text-muted">Sin imagen</span>
+        {% endif %}
     </td>
     <td>
-      {% if item.catalog_image %}
-        <img src="{{ item.catalog_image }}" alt="Imagen catálogo"
-             class="img-thumbnail" style="max-height: 100px;">
-      {% else %}
-        <span class="text-muted">Sin imagen</span>
-      {% endif %}
-    </td>
-    <td>
-      {% if item.validado %}
+    {% if item.validado_ia_ahora %}
+        <span class="text-success fw-bold" title="Validado recién con IA">✔️ IA (nuevo)</span>
+    {% elif item.validado == 1 %}
         ✅
-      {% else %}
+    {% elif item.validado == 2 %}
+        <span class="text-success" title="Validado por IA, sin datos de contacto">✔️ IA</span>
+    {% elif item.validado == 0 and item.datos_contacto %}
+        <span class="text-danger fw-bold" title="🚫 IA detectó datos de contacto en la imagen">🚫 Revisión</span>
+    {% else %}
         <span class="text-muted">No</span>
-      {% endif %}
+    {% endif %}
     </td>
+
+
   </tr>
   {% endfor %}
 </tbody>
