@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1 class="mb-4">Items Mercado Libre</h1>
+<h4 class="mb-4">Items Mercado Libre</h4>
 
 <form method="get" class="row g-3 mb-4">
   <div class="col-md-6">
@@ -15,14 +15,64 @@
       </div>
     {% endfor %}
   </div>
-
-  <div class="col-md-2">
-    <label for="limit" class="form-label">Resultados por página</label>
-    <select name="limit" id="limit" class="form-select">
-      <option value="50" {% if limit == 50 %}selected{% endif %}>50</option>
-      <option value="100" {% if limit == 100 %}selected{% endif %}>100</option>
+    <div class="col-md-2">
+    <label for="status" class="form-label">Estado</label>
+    <select name="status" id="status" class="form-select">
+        <option value="">Todos</option>
+        {% for s in ['active', 'under_review', 'paused', 'closed'] %}
+        <option value="{{ s }}" {% if request.args.get('status') == s %}selected{% endif %}>
+            {{ s.replace('_', ' ').capitalize() }}
+        </option>
+        {% endfor %}
     </select>
+    </div>
+    <div class="col-md-4">
+  <label class="form-label d-block">Validación</label>
+
+  {% set selected_validado = request.args.get('validado') %}
+  <div class="form-check form-check-inline">
+    <input class="form-check-input" type="radio" name="validado" id="val_all" value="" 
+           {% if selected_validado == None or selected_validado == '' %}checked{% endif %}>
+    <label class="form-check-label" for="val_all">Todos</label>
   </div>
+  <div class="form-check form-check-inline">
+    <input class="form-check-input" type="radio" name="validado" id="val_0" value="0" 
+           {% if selected_validado == '0' %}checked{% endif %}>
+    <label class="form-check-label" for="val_0">Sin validar</label>
+  </div>
+  <div class="form-check form-check-inline">
+    <input class="form-check-input" type="radio" name="validado" id="val_1" value="1" 
+           {% if selected_validado == '1' %}checked{% endif %}>
+    <label class="form-check-label" for="val_1">Validados</label>
+  </div>
+</div>
+<div class="col-md-4">
+  <label class="form-label d-block">¿Es catalogable?</label>
+  {% set catalogable_filter = request.args.get('catalogable') %}
+  <div class="form-check form-check-inline">
+    <input class="form-check-input" type="radio" name="catalogable" id="catalogable_all" value=""
+           {% if catalogable_filter == None or catalogable_filter == '' %}checked{% endif %}>
+    <label class="form-check-label" for="catalogable_all">Todos</label>
+  </div>
+  <div class="form-check form-check-inline">
+    <input class="form-check-input" type="radio" name="catalogable" id="catalogable_yes" value="1"
+           {% if catalogable_filter == '1' %}checked{% endif %}>
+    <label class="form-check-label" for="catalogable_yes">Sí</label>
+  </div>
+  <div class="form-check form-check-inline">
+    <input class="form-check-input" type="radio" name="catalogable" id="catalogable_no" value="0"
+           {% if catalogable_filter == '0' %}checked{% endif %}>
+    <label class="form-check-label" for="catalogable_no">No</label>
+  </div>
+</div>
+<div class="col-md-2">
+  <label for="limit" class="form-label">Resultados por página</label>
+  <select name="limit" id="limit" class="form-select">
+    {% for opt in [1, 2, 5, 10, 50, 100, 500, 1000] %}
+      <option value="{{ opt }}" {% if limit == opt %}selected{% endif %}>{{ opt }}</option>
+    {% endfor %}
+  </select>
+</div>
 
   <div class="col-md-2 align-self-end">
     <button type="submit" class="btn btn-primary">Filtrar</button>
@@ -31,42 +81,75 @@
 
 {% if items %}
 <p class="text-muted">Resultados encontrados: {{ total }}</p>
-
+<form method="post" action="{{ url_for('items_meli_bp.catalogar_items') }}">
 <table class="table table-striped table-bordered align-middle">
-  <thead>
-    <tr>
-      <th>IDML</th>
-      <th>ISBN</th>
-      <th>Título</th>
-      <th>Imagen actual</th>
-      <th>Imagen catálogo</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for item in items %}
-    <tr>
-      <td>{{ item.idml }}</td>
-      <td>{{ item.isbn }}</td>
-      <td>{{ item.title or '-' }}</td>
-      <td>
-        {% if item.thumbnail %}
-        <img src="{{ item.thumbnail }}" alt="Imagen actual" class="img-thumbnail" style="max-height: 100px;">
-        {% else %}
+ <thead>
+  <tr>
+    <th><input type="checkbox" id="check_all" checked></th>  
+    <th>IDML</th>
+    <th>ISBN</th>
+    <th>Título</th>
+    <th>Imagen actual</th>
+    <th>Imagen catálogo</th>
+    <th>Validado</th> 
+  </tr>
+</thead>
+<tbody>
+  {% for item in items %}
+  <tr>
+    <td>
+      {% if item.catalogable %}
+        <input type="checkbox"
+               name="selected_items"
+               value="{{ item.idml }}"
+               {% if item.validado == 1 %}checked{% endif %}>
+        <input type="hidden" name="catalog_product_id_{{ item.idml }}" value="{{ item.catalog_product_id }}">
+      {% else %}
+        <input type="checkbox"
+               disabled
+               title="No es catalogable"
+               class="form-check-input">
+      {% endif %}
+    </td>        
+    <td>
+      <a href="https://www.mercadolibre.com.mx/publicaciones/listado?search={{ item.idml }}"
+         target="_blank" rel="noopener noreferrer">
+        {{ item.idml }}
+      </a>
+    </td>      
+    <td>{{ item.isbn }}</td>
+    <td>{{ item.title or '-' }}</td>
+    <td>
+      {% if item.thumbnail %}
+        <img src="{{ item.thumbnail }}" alt="Imagen actual"
+             class="img-thumbnail" style="max-height: 100px;">
+      {% else %}
         <span class="text-muted">Sin imagen</span>
-        {% endif %}
-      </td>
-      <td>
-        {% if item.catalog_image %}
-        <img src="{{ item.catalog_image }}" alt="Imagen catálogo" class="img-thumbnail" style="max-height: 100px;">
-        {% else %}
+      {% endif %}
+    </td>
+    <td>
+      {% if item.catalog_image %}
+        <img src="{{ item.catalog_image }}" alt="Imagen catálogo"
+             class="img-thumbnail" style="max-height: 100px;">
+      {% else %}
         <span class="text-muted">Sin imagen</span>
-        {% endif %}
-      </td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
+      {% endif %}
+    </td>
+    <td>
+      {% if item.validado %}
+        ✅
+      {% else %}
+        <span class="text-muted">No</span>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+</tbody>
 
+
+</table>
+<button type="submit" class="btn btn-success mt-2">Catalogar seleccionados</button>
+</form>
 {% set args = request.args.to_dict(flat=False) %}
 {% set _ = args.pop('limit', None) %}
 {% set _ = args.pop('page', None) %}
@@ -92,5 +175,16 @@
 {% else %}
 <div class="alert alert-info">No se encontraron resultados con los filtros actuales.</div>
 {% endif %}
+
+
+<script>
+  const checkAll = document.getElementById('check_all');
+  if (checkAll) {
+    checkAll.addEventListener('change', function () {
+      const checkboxes = document.querySelectorAll('input[name="selected_items"]');
+      checkboxes.forEach(cb => cb.checked = this.checked);
+    });
+  }
+</script>
 
 {% endblock %}
