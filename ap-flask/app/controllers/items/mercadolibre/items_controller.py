@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request,redirect, url_for, flash
 from app.db import get_conn
+from app.integrations.openia.image_checker import analizar_imagen_con_ia
 from app.integrations.mercadolibre.services.token_service import verificar_meli
 import requests
 
