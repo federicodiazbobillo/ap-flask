@@ -46,9 +46,10 @@ def obtener_items(req: Request, access_token: str) -> dict:
             base_where.append("m.status = %s")
             query_params.append(status)
 
-        if validado in ("0", "1"):
-            base_where.append("m.validado = %s")
-            query_params.append(int(validado))
+        if validado == "0":
+            base_where.append("m.validado = 0")
+        elif validado == "1":
+            base_where.append("m.validado > 0")
 
         if base_where:
             base_query += " WHERE " + " AND ".join(base_where)
@@ -83,9 +84,10 @@ def obtener_items(req: Request, access_token: str) -> dict:
             count_where.append("m.status = %s")
             count_params.append(status)
 
-        if validado in ("0", "1"):
-            count_where.append("m.validado = %s")
-            count_params.append(int(validado))
+        if validado == "0":
+            count_where.append("m.validado = 0")
+        elif validado == "1":
+            count_where.append("m.validado > 0")
 
         if count_where:
             count_query += " WHERE " + " AND ".join(count_where)

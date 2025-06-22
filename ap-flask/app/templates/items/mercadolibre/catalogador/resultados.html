@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Resultados de la catalogación</h1>
+
+{% if resultados %}
+    <h3>Catalogados con éxito:</h3>
+    <a href="{{ url_for('catalogador_bp.items') }}" class="btn btn-primary mt-3">← Volver al listado</a>
+    <ul>
+    {% for r in resultados.exitos %}
+        <li>{{ r }}</li>
+    {% endfor %}
+    </ul>
+
+    <h3>Con errores:</h3>
+    <ul>
+    {% for r in resultados.errores %}
+        <li>{{ r }}</li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No se encontraron resultados para mostrar.</p>
+{% endif %}
+{% endblock %}

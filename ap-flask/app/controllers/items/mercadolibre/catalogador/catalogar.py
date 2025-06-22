@@ -1,4 +1,4 @@
-from flask import Request, redirect, url_for, flash
+from flask import Request, redirect, url_for, flash, session
 from app.db import get_conn
 import requests
 
@@ -10,8 +10,8 @@ def procesar_catalogacion(req: Request, access_token: str):
         return redirect(url_for("catalogador_bp.items"))
 
     conn = get_conn()
-    exitos = 0
-    errores = 0
+    exitos = []
+    errores = []
 
     with conn.cursor() as cursor:
         for idml in seleccionados:
@@ -19,7 +19,7 @@ def procesar_catalogacion(req: Request, access_token: str):
 
             if not catalog_product_id:
                 print(f"⚠️ Sin catalog_product_id para {idml}")
-                errores += 1
+                errores.append(idml)
                 continue
 
             try:
@@ -36,7 +36,7 @@ def procesar_catalogacion(req: Request, access_token: str):
 
                     if not nuevo_idml:
                         print(f"⚠️ No se obtuvo nuevo ID para {idml}")
-                        errores += 1
+                        errores.append(idml)
                         continue
 
                     cursor.execute("""
@@ -51,15 +51,21 @@ def procesar_catalogacion(req: Request, access_token: str):
                         WHERE idml = %s
                     """, (nuevo_idml, idml))
 
-                    exitos += 1
+                    exitos.append(idml)
                 else:
-                    errores += 1
+                    errores.append(idml)
                     print(f"❌ Error catalogando {idml}: {response.status_code} - {response.text}")
 
             except Exception as e:
-                errores += 1
+                errores.append(idml)
                 print(f"⚠️ Excepción catalogando {idml}: {e}")
 
     conn.commit()
-    flash(f"{exitos} ítems catalogados correctamente. {errores} con error.", "info")
-    return redirect(url_for("catalogador_bp.items"))
+
+    # Guardar resultados en sesión y redirigir a vista de resultados
+    session['catalogacion_resultados'] = {
+        'exitos': exitos,
+        'errores': errores
+    }
+
+    return redirect(url_for("catalogador_bp.resultados"))
