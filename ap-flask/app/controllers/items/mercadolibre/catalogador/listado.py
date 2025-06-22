@@ -27,7 +27,7 @@ def obtener_items(req: Request, access_token: str) -> dict:
         base_query = """
             SELECT 
                 m.idml, m.isbn, m.validado, m.catalog_product_id, 
-                m.item_relations, m.catalog_listing, m.catalog_listing_eligible
+                m.item_relations, m.catalog_listing
             FROM items_meli m
             JOIN item_meli_tags t ON t.item_idml = m.idml
         """
@@ -56,7 +56,7 @@ def obtener_items(req: Request, access_token: str) -> dict:
 
         full_query = f"""
             {base_query}
-            GROUP BY m.idml, m.isbn, m.validado, m.catalog_product_id, m.item_relations, m.catalog_listing, m.catalog_listing_eligible
+            GROUP BY m.idml, m.isbn, m.validado, m.catalog_product_id, m.item_relations, m.catalog_listing
             ORDER BY MAX(m.id) DESC
             LIMIT %s OFFSET %s
         """
@@ -95,7 +95,6 @@ def obtener_items(req: Request, access_token: str) -> dict:
         cursor.execute(count_query, count_params)
         total = cursor.fetchone()[0]
 
-    # 🧐 Multi-get para los items
     idmls = [row[0] for row in rows]
     items_meli_api = {}
     if idmls:
@@ -117,7 +116,7 @@ def obtener_items(req: Request, access_token: str) -> dict:
     for row in rows:
         (
             idml, isbn, validado, catalog_product_id,
-            item_relations, catalog_listing, catalog_listing_eligible
+            item_relations, catalog_listing
         ) = row
 
         title, thumbnail, catalog_image, permalink = None, None, None, None
@@ -130,6 +129,7 @@ def obtener_items(req: Request, access_token: str) -> dict:
         validado_ia_ahora = False
         contacto_detectado_textual = False
         bloqueado_catalogo = False
+        catalog_listing_eligible = False
 
         try:
             data = items_meli_api.get(idml)
@@ -139,9 +139,10 @@ def obtener_items(req: Request, access_token: str) -> dict:
                 permalink = data.get("permalink")
                 contacto_detectado_textual = validar_campos_textuales_meli(data)
 
-                # ❌ Verificamos si el tag ya no existe en la API
                 tags_api = data.get("tags", [])
-                if "catalog_listing_eligible" not in tags_api and isinstance(data.get("item_relations"), list) and data["item_relations"]:
+                catalog_listing_eligible = "catalog_listing_eligible" in tags_api
+
+                if not catalog_listing_eligible and isinstance(data.get("item_relations"), list) and data["item_relations"]:
                     try:
                         with conn.cursor() as cursor:
                             cursor.execute(
