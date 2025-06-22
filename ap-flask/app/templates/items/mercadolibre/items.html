@@ -81,23 +81,26 @@
   <tr>
     <td> 
 
-{% if item.catalogable %}
-  {% if item.datos_contacto %}
-    <span class="text-danger fw-bold" title="No se puede catalogar: IA detectó datos de contacto en la imagen">🚫</span>
-  {% elif item.contacto_detectado_textual %}
-    <span class="text-danger fw-bold" title="No se puede catalogar: texto contiene datos de contacto">🚫</span>
-  {% elif item.bloqueado_catalogo %}
-    <span class="text-warning fw-bold" title="No se puede catalogar: múltiples hijos o ninguno activo">🚫</span>
-  {% else %}
-    <input type="checkbox"
-           name="selected_items"
-           value="{{ item.idml }}"
-           checked>
-    <input type="hidden" name="catalog_product_id_{{ item.idml }}" value="{{ item.catalog_product_id }}">
-  {% endif %}
-{% else %}
-  <span class="text-muted" title="No es catalogable">🚫</span>
-{% endif %}
+        {% if item.catalogable %}
+        {% if item.datos_contacto %}
+            <span class="text-danger fw-bold" title="No se puede catalogar: IA detectó datos de contacto en la imagen">🚫</span>
+        {% elif item.contacto_detectado_textual %}
+            <span class="text-danger fw-bold" title="No se puede catalogar: texto contiene datos de contacto">🚫</span>
+        {% elif item.bloqueado_catalogo %}
+            <span class="text-warning fw-bold" title="No se puede catalogar: múltiples hijos o ninguno activo">🚫</span>
+        {% elif not item.catalog_listing_eligible %}
+            <span class="text-muted" title="El ítem ya no es elegible para catálogo según API">🚫</span>
+        {% else %}
+            <input type="checkbox"
+                name="selected_items"
+                value="{{ item.idml }}"
+                checked>
+            <input type="hidden" name="catalog_product_id_{{ item.idml }}" value="{{ item.catalog_product_id }}">
+        {% endif %}
+        {% else %}
+        <span class="text-muted" title="No es catalogable">🚫</span>
+        {% endif %}
+
 
     </td>
     

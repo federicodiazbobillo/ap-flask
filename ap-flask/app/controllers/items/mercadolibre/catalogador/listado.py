@@ -19,10 +19,7 @@ def obtener_items(req: Request, access_token: str) -> dict:
     if not filter_tags and not status and validado not in ('0', '1'):
         flash("Aplicá al menos un filtro para buscar ítems.", "info")
         return {
-            'items': [],
-            'total': 0,
-            'page': page,
-            'limit': limit
+            'items': [], 'total': 0, 'page': page, 'limit': limit
         }
 
     conn = get_conn()
@@ -96,7 +93,7 @@ def obtener_items(req: Request, access_token: str) -> dict:
         cursor.execute(count_query, count_params)
         total = cursor.fetchone()[0]
 
-    # 🧠 Multi-get para los items
+    # 🧐 Multi-get para los items
     idmls = [row[0] for row in rows]
     items_meli_api = {}
     if idmls:
@@ -139,6 +136,20 @@ def obtener_items(req: Request, access_token: str) -> dict:
                 thumbnail = data.get("thumbnail")
                 permalink = data.get("permalink")
                 contacto_detectado_textual = validar_campos_textuales_meli(data)
+
+                # ❌ Verificamos si el tag ya no existe en la API
+                tags_api = data.get("tags", [])
+                if "catalog_listing_eligible" not in tags_api and isinstance(data.get("item_relations"), list) and data["item_relations"]:
+                    try:
+                        with conn.cursor() as cursor:
+                            cursor.execute(
+                                "DELETE FROM item_meli_tags WHERE item_idml = %s AND tag = 'catalog_listing_eligible'",
+                                (idml,)
+                            )
+                        conn.commit()
+                        catalogable = False
+                    except Exception as e:
+                        print(f"⚠️ Error al eliminar tag catalog_listing_eligible para {idml}: {e}")
 
                 if validado == 0:
                     pictures = data.get("pictures", [])
