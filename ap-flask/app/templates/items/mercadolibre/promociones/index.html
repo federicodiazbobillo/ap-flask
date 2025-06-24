@@ -14,14 +14,14 @@
     </tr>
   </thead>
   <tbody>
-    {% for promociones in promociones %}
+    {% for promo in promociones %}
     <tr>
-      <td>{{ promociones.id }}</td>
-      <td>{{ promociones.promotion_type }}</td>
-      <td>{{ promociones.name }}</td>
-      <td>{{ promociones.status }}</td>
-      <td>{{ promociones.start_date }}</td>
-      <td>{{ promociones.finish_date }}</td>
+        <td>{{ promo.id }}</td>
+        <td>{{ promo.promotion_type }}</td>
+        <td>{{ promo.name }}</td>
+        <td>{{ promo.status }}</td>
+        <td>{{ promo.start_date }}</td>
+        <td>{{ promo.finish_date }}</td>
     </tr>
     {% endfor %}
   </tbody>
