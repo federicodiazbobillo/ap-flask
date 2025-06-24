@@ -1,4 +1,29 @@
-{% extends "base.html" %}
-<h2>Promociones</h2>
+{% extends 'base.html' %}
+
 {% block content %}
+<h2>Promociones activas</h2>
+<table class="table">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Tipo</th>
+      <th>Nombre</th>
+      <th>Estado</th>
+      <th>Inicio</th>
+      <th>Fin</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for promociones in promociones %}
+    <tr>
+      <td>{{ promociones.id }}</td>
+      <td>{{ promociones.promotion_type }}</td>
+      <td>{{ promociones.name }}</td>
+      <td>{{ promociones.status }}</td>
+      <td>{{ promociones.start_date }}</td>
+      <td>{{ promociones.finish_date }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 {% endblock %}
