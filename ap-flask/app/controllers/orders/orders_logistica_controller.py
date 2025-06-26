@@ -1,9 +1,9 @@
-from flask import Blueprint, render_template, request, jsonify
+from flask import Blueprint, render_template, request, jsonify, redirect, flash
 from app.db import get_conn
 
 orders_logistica_bp = Blueprint('orders_logistica', __name__, url_prefix='/orders/logistica')
 
-def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=None, venc_hasta=None):
+def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=None, venc_hasta=None, nota_like=None):
     """
     Obtiene órdenes con filtros de ID, rango de creación y rango de vencimiento (inclusive),
     agrupa por pack_id (o order_id si pack_id es null) y normaliza datos.
@@ -14,6 +14,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
     # Construir condiciones de filtro
     filters = []
     params = []
+
     if id_param:
         filters.append("(o.order_id = %s OR o.pack_id = %s)")
         params.extend([id_param, id_param])
@@ -29,22 +30,28 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
     if venc_hasta:
         filters.append("DATE(o.manufacturing_ending_date) <= %s")
         params.append(venc_hasta)
+    if nota_like:
+        filters.append("oi.notas LIKE %s")
+        params.append(f"%{nota_like}%")
 
-    # Base de consulta incluyendo guía y nota
+    # Base de consulta incluyendo JOIN con shipments y order_items
     base_query = (
-        "SELECT o.order_id,"
-        " o.pack_id,"
-        " o.created_at,"
-        " o.total_amount,"
-        " o.status AS order_status,"
-        " o.manufacturing_ending_date,"
-        " s.status AS shipping_status"
-        " FROM orders o"
-        " LEFT JOIN shipments s ON o.shipping_id = s.shipping_id"
+        "SELECT o.order_id, "
+        "o.pack_id, "
+        "o.created_at, "
+        "o.total_amount, "
+        "o.status AS order_status, "
+        "o.manufacturing_ending_date, "
+        "s.status AS shipping_status "
+        "FROM orders o "
+        "LEFT JOIN shipments s ON o.shipping_id = s.shipping_id "
+        "LEFT JOIN order_items oi ON oi.order_id = o.order_id"
     )
-    # Agregar WHERE si hay filtros 
+
+    # Aplicar filtros y orden
     if filters:
         base_query += " WHERE " + " AND ".join(filters)
+        base_query += " GROUP BY o.order_id"
         base_query += " ORDER BY o.created_at DESC"
     else:
         base_query += " WHERE DATE(o.created_at) = CURDATE()"
@@ -52,10 +59,9 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
     cursor.execute(base_query, tuple(params) if params else None)
     raw = cursor.fetchall()
 
-    # Agrupar registros por reference_id
+    # Agrupar por referencia
     groups = {}
     for row in raw:
-        # Desempaquetar incluyendo guia y nota
         order_id, pack_id, created_at, total_amount, order_status, ending_date, shipping_status = row
         reference_id = pack_id or order_id
         if reference_id not in groups:
@@ -74,19 +80,20 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
             }
         groups[reference_id]['order_ids'].append(order_id)
 
-    # Obtener items para todos los order_ids
+    # Obtener ítems para todas las órdenes agrupadas
     items_map = {}
     if groups:
         order_ids = [oid for group in groups.values() for oid in group['order_ids']]
         format_ids = ','.join(['%s'] * len(order_ids))
         cursor.execute(
-            f"SELECT id,order_id, item_id, seller_sku, quantity, guia, notas FROM order_items WHERE order_id IN ({format_ids})",
+            f"SELECT id, order_id, item_id, seller_sku, quantity, guia, notas "
+            f"FROM order_items WHERE order_id IN ({format_ids})",
             tuple(order_ids)
         )
         for row in cursor.fetchall():
             item_db_id, oid, item_id, sku, qty, guia_item, nota_item = row
             items_map.setdefault(oid, []).append({
-                'id': item_db_id,                # necesario para el form
+                'id': item_db_id,
                 'item_id': item_id,
                 'seller_sku': sku,
                 'quantity': qty,
@@ -94,7 +101,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
                 'notas': nota_item
             })
 
-    # Construir lista final
+    # Construir resultado final
     orders = []
     for group in groups.values():
         meta = group['meta']
@@ -110,14 +117,17 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
 @orders_logistica_bp.route('/')
 def index_logistica():
     """
-    Vista HTML de logística con filtros por ID, creación y vencimiento.
+    Vista HTML de logística con filtros por ID, fechas y nota.
     """
     id_param = request.args.get('id')
     fecha_desde = request.args.get('fecha_desde')
     fecha_hasta = request.args.get('fecha_hasta')
     venc_desde = request.args.get('venc_desde')
     venc_hasta = request.args.get('venc_hasta')
-    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta)
+    nota_like = request.args.get("nota")
+
+    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like)
+
     return render_template(
         'orders/logistica.html',
         ordenes=orders,
@@ -126,30 +136,30 @@ def index_logistica():
         filtro_fecha_desde=fecha_desde,
         filtro_fecha_hasta=fecha_hasta,
         filtro_venc_desde=venc_desde,
-        filtro_venc_hasta=venc_hasta
+        filtro_venc_hasta=venc_hasta,
+        nota_like=nota_like
     )
 
 @orders_logistica_bp.route('/search')
 def search_logistica():
     """
-    Endpoint JSON para búsqueda de órdenes con filtros y agrupación.
+    Endpoint JSON para búsqueda de órdenes con filtros.
     """
     id_param = request.args.get('id')
     fecha_desde = request.args.get('fecha_desde')
     fecha_hasta = request.args.get('fecha_hasta')
     venc_desde = request.args.get('venc_desde')
     venc_hasta = request.args.get('venc_hasta')
-    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta)
-    return jsonify({'orders': orders})
+    nota_like = request.args.get("nota")
 
+    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like)
+    return jsonify({'orders': orders})
 
 @orders_logistica_bp.route('/actualizar-nota-item', methods=['POST'])
 def actualizar_nota_item():
     """
     Actualiza el campo 'notas' de un item en order_items.
     """
-    from flask import redirect, flash  # ya se importa render_template y request
-
     item_id = request.form.get('item_id')
     nota = request.form.get('notas', '').strip()
 
@@ -170,7 +180,6 @@ def actualizar_nota_item():
         print("Actualizando item_id:", item_id, "| nota:", nota)
     except Exception as e:
         conn.rollback()
-        
         print("ERROR Actualizando item_id:", item_id, "| nota:", nota)
     finally:
         cursor.close()
