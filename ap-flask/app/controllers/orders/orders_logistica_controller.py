@@ -38,9 +38,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
         " o.total_amount,"
         " o.status AS order_status,"
         " o.manufacturing_ending_date,"
-        " s.status AS shipping_status,"
-        " o.guia AS guia,"
-        " o.notas AS nota"
+        " s.status AS shipping_status"
         " FROM orders o"
         " LEFT JOIN shipments s ON o.shipping_id = s.shipping_id"
     )
@@ -58,7 +56,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
     groups = {}
     for row in raw:
         # Desempaquetar incluyendo guia y nota
-        order_id, pack_id, created_at, total_amount, order_status, ending_date, shipping_status, guia, nota = row
+        order_id, pack_id, created_at, total_amount, order_status, ending_date, shipping_status = row
         reference_id = pack_id or order_id
         if reference_id not in groups:
             created_str = created_at.strftime('%d/%m/%Y') if hasattr(created_at, 'strftime') else ''
@@ -70,9 +68,7 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
                     'total_amount': total_amount,
                     'status': order_status,
                     'manufacturing_ending_date': ending_str,
-                    'shipping_status': shipping_status,
-                    'guia': guia,
-                    'nota': nota
+                    'shipping_status': shipping_status
                 },
                 'order_ids': []
             }
@@ -84,14 +80,18 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
         order_ids = [oid for group in groups.values() for oid in group['order_ids']]
         format_ids = ','.join(['%s'] * len(order_ids))
         cursor.execute(
-            f"SELECT order_id, item_id, seller_sku, quantity FROM order_items WHERE order_id IN ({format_ids})",
+            f"SELECT id,order_id, item_id, seller_sku, quantity, guia, notas FROM order_items WHERE order_id IN ({format_ids})",
             tuple(order_ids)
         )
-        for oid, item_id, sku, qty in cursor.fetchall():
+        for row in cursor.fetchall():
+            item_db_id, oid, item_id, sku, qty, guia_item, nota_item = row
             items_map.setdefault(oid, []).append({
+                'id': item_db_id,                # necesario para el form
                 'item_id': item_id,
                 'seller_sku': sku,
-                'quantity': qty
+                'quantity': qty,
+                'guia': guia_item,
+                'notas': nota_item
             })
 
     # Construir lista final
@@ -141,3 +141,38 @@ def search_logistica():
     venc_hasta = request.args.get('venc_hasta')
     orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta)
     return jsonify({'orders': orders})
+
+
+@orders_logistica_bp.route('/actualizar-nota-item', methods=['POST'])
+def actualizar_nota_item():
+    """
+    Actualiza el campo 'notas' de un item en order_items.
+    """
+    from flask import redirect, flash  # ya se importa render_template y request
+
+    item_id = request.form.get('item_id')
+    nota = request.form.get('notas', '').strip()
+
+    if not item_id:
+        flash("ID de item no especificado", "danger")
+        return redirect(request.referrer)
+
+    if len(nota) > 20:
+        flash("La nota no puede tener más de 20 caracteres", "danger")
+        return redirect(request.referrer)
+
+    conn = get_conn()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("UPDATE order_items SET notas = %s WHERE id = %s", (nota, item_id))
+        conn.commit()
+        print("Actualizando item_id:", item_id, "| nota:", nota)
+    except Exception as e:
+        conn.rollback()
+        
+        print("ERROR Actualizando item_id:", item_id, "| nota:", nota)
+    finally:
+        cursor.close()
+
+    return redirect(request.referrer)

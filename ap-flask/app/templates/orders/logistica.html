@@ -52,8 +52,6 @@
         <th>Creación</th>
         <th>Vencimiento</th>
         <th>Estado / Envío</th>
-        <th>Guia</th>
-        <th>Nota</th>
         <th>Items</th>
       </tr>
     </thead>
@@ -70,30 +68,42 @@
           {% endif %}
         </td>
         <td>{{ orden.status }} / {{ orden.shipping_status }}</td>
-        <td>{{ orden.guia or '-' }}</td>
-        <td>{{ orden.nota or '-' }}</td>
         <td>
           {% if orden['items'] %}
-          <table class="table table-sm table-bordered mb-0">
-            <thead class="bg-light">
-              <tr>
-                <th>ID</th>
-                <th>SKU</th>
-                <th>Cant.</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in orden['items'] %}
-              <tr>
-                <td>{{ item.item_id }}</td>
-                <td>{{ item.seller_sku or '-' }}</td>
-                <td>
-                  <span class="{% if item.quantity > 1 %}font-weight-bold text-danger{% endif %}">{{ item.quantity }}</span>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+            <table class="table table-sm table-bordered mb-0">
+              <thead class="bg-light">
+                <tr>
+                  <th>ID</th>
+                  <th>SKU</th>
+                  <th>Cant.</th>
+                  <th>Guía</th>
+                  <th>Nota</th>
+                  <th></th> <!-- Botón guardar -->
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in orden['items'] %}
+                <tr>
+                  <td>{{ item.item_id }}</td>
+                  <td>{{ item.seller_sku or '-' }}</td>
+                  <td>
+                    <span class="{% if item.quantity > 1 %}font-weight-bold text-danger{% endif %}">{{ item.quantity }}</span>
+                  </td>
+                  <td>{{ item.guia or '-' }}</td>
+                  <td>
+                    <form method="POST" action="{{ url_for('orders_logistica.actualizar_nota_item') }}">
+                      <input type="hidden" name="item_id" value="{{ item.id }}">
+                      <input type="text" name="notas" value="{{ item.notas or '' }}" maxlength="20" class="form-control form-control-sm">
+                  </td>
+                  <td>
+                      <button type="submit" class="btn btn-sm btn-primary">💾</button>
+                    </form>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+
           {% else %}
             -
           {% endif %}
@@ -102,6 +112,7 @@
       {% endfor %}
     </tbody>
   </table>
+
 </div>
 
 {% endblock %}
