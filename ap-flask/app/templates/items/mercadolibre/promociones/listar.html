@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: .4s;
+  border-radius: 24px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: #4CAF50;
+}
+input:checked + .slider:before {
+  transform: translateX(18px);
+}
+</style>
+
+<h2>Ítems en promoción {{ promotion_id }} ({{ promotion_type }})</h2>
+
+<form method="POST" action="{{ url_for('promociones.aplicar_descuentos') }}">
+  <input type="hidden" name="promotion_id" value="{{ promotion_id }}">
+  <input type="hidden" name="promotion_type" value="{{ promotion_type }}">
+
+  <table class="table">
+    <thead>
+      <tr>
+        {% if promotion_type in ['DEAL', 'PRICE_MATCHING'] %}
+          <th>
+            <label class="switch">
+              <input type="checkbox" id="check_all" onchange="toggleAll(this)">
+              <span class="slider"></span>
+            </label>
+          </th>
+        {% endif %}
+        <th>ID</th>
+        <th>Status</th>
+        <th>Precio original</th>
+        {% if promotion_type in ['SMART', 'MARKETPLACE_CAMPAIGN'] %}
+          <th>Precio con descuento</th>
+          <th>% ML</th>
+          <th>% Vendedor</th>
+        {% elif promotion_type in ['DEAL', 'PRICE_MATCHING'] %}
+          <th>Precio máx. sugerido</th>
+          <th>Precio sugerido</th>
+        {% endif %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr>
+        {% if promotion_type in ['DEAL', 'PRICE_MATCHING'] %}
+          <td>
+            {% if item.suggested_discounted_price %}
+              <label class="switch">
+                <input type="checkbox"
+                       class="toggle-switch item-toggle"
+                       data-id="{{ item.id }}"
+                       data-price="{{ item.suggested_discounted_price }}"
+                       checked>
+                <span class="slider"></span>
+              </label>
+            {% endif %}
+          </td>
+        {% endif %}
+        <td>{{ item.id }}</td>
+        <td>{{ item.status }}</td>
+        <td>${{ item.original_price or '–' }}</td>
+        {% if promotion_type in ['SMART', 'MARKETPLACE_CAMPAIGN'] %}
+          <td>
+            {% if item.price is defined %}
+              ${{ '%.2f'|format(item.price) }}
+            {% else %} – {% endif %}
+          </td>
+          <td>{{ item.meli_percentage if item.meli_percentage is defined else '–' }}%</td>
+          <td>{{ item.seller_percentage if item.seller_percentage is defined else '–' }}%</td>
+        {% elif promotion_type in ['DEAL', 'PRICE_MATCHING'] %}
+          <td>
+            {% if item.max_discounted_price is defined and item.original_price %}
+              ${{ '%.2f'|format(item.max_discounted_price) }}
+              <small class="text-muted">({{ ((item.original_price - item.max_discounted_price) / item.original_price * 100) | round(0) }}%)</small>
+            {% else %} – {% endif %}
+          </td>
+          <td>
+            {% if item.suggested_discounted_price is defined and item.original_price %}
+              ${{ '%.2f'|format(item.suggested_discounted_price) }}
+              <small class="text-muted">({{ ((item.original_price - item.suggested_discounted_price) / item.original_price * 100) | round(0) }}%)</small>
+            {% else %} – {% endif %}
+          </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% if promotion_type in ['DEAL', 'PRICE_MATCHING'] %}
+    <button type="submit" class="btn btn-success">Aplicar descuentos seleccionados</button>
+  {% endif %}
+  <div id="input-items-on"></div>
+  <div id="input-items-off"></div>
+</form>
+
+<a href="{{ url_for('promociones.listar_promociones') }}" class="btn btn-secondary mt-3">← Volver</a>
+
+<script>
+function toggleAll(source) {
+  const toggles = document.querySelectorAll('.item-toggle');
+  toggles.forEach(tg => tg.checked = source.checked);
+}
+
+document.querySelector('form').addEventListener('submit', function (e) {
+  const onContainer = document.getElementById('input-items-on');
+  const offContainer = document.getElementById('input-items-off');
+  onContainer.innerHTML = '';
+  offContainer.innerHTML = '';
+
+  const toggles = document.querySelectorAll('.toggle-switch');
+  toggles.forEach(toggle => {
+    const itemId = toggle.dataset.id;
+    const price = toggle.dataset.price;
+
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    if (toggle.checked) {
+      input.name = 'items_on[]';
+      input.value = `${itemId}|${price}`;
+      onContainer.appendChild(input);
+    } else {
+      input.name = 'items_off[]';
+      input.value = itemId;
+      offContainer.appendChild(input);
+    }
+  });
+});
+</script>
+
+{% endblock %}

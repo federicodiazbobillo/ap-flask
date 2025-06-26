@@ -9,8 +9,9 @@
       <th>Tipo</th>
       <th>Nombre</th>
       <th>Estado</th>
-      <th>Inicio</th>
-      <th>Fin</th>
+      <th>Desde/Hasta</th>
+      <th>Ítems</th>
+      <th>ver</th>
     </tr>
   </thead>
   <tbody>
@@ -20,8 +21,15 @@
         <td>{{ promo.promotion_type }}</td>
         <td>{{ promo.name }}</td>
         <td>{{ promo.status }}</td>
-        <td>{{ promo.start_date }}</td>
-        <td>{{ promo.finish_date }}</td>
+        <td>{{ promo.start_date }} - {{ promo.finish_date }}</td>
+        <td>{{ promo.elegibles }} elegibles{% if promo.participando %} | {{ promo.participando }} participando{% endif %}</td>
+        <td>
+            <a href="{{ url_for('promociones.ver_items', promotion_id=promo.id, promotion_type=promo.type) }}">
+                Ver ítems
+            </a>
+        </td>
+
+
     </tr>
     {% endfor %}
   </tbody>
