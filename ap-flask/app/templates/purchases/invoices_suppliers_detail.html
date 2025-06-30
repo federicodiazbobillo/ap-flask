@@ -40,7 +40,8 @@
             <td>{{ row[6] }}</td>
             <td>
                 {% if not row[5] %}
-                <button class="btn btn-sm btn-info" onclick="abrirModal({{ row[0] }}, '{{ row[3] }}')">Vincular orden</button>
+                    <button class="btn btn-sm btn-info vincular-btn"  data-item-id="{{ row[0] }}"  data-isbn="{{ row[3]|e }}">Vincular orden</button>
+
                 {% else %}
                 —
                 {% endif %}
