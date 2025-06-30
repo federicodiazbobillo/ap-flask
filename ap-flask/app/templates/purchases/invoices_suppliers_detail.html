@@ -131,6 +131,13 @@ function abrirModal(itemId, isbn) {
         document.getElementById("modalContenido").innerHTML = "<p>Error al buscar órdenes.</p>";
     });
 }
+document.querySelectorAll('.vincular-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const itemId = this.getAttribute('data-item-id');
+        const isbn = this.getAttribute('data-isbn');
+        abrirModal(itemId, isbn);
+    });
+});
 </script>
 
 {% endblock %}
