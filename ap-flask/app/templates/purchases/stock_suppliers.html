@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">📦 Stock Proveedores</h1>
+
+    <form method="get" action="{{ url_for('purchases.stock_suppliers') }}" class="form-inline mb-4">
+        <label for="isbn" class="mr-2">Buscar por ISBN:</label>
+        <input type="text" name="isbn" id="isbn" value="{{ request.args.get('isbn', '') }}" class="form-control mr-2" placeholder="Ej: 9781234567890">
+        <button type="submit" class="btn btn-primary">Buscar</button>
+    </form>
+
+    {% if libro %}
+        <pre>{{ libro | tojson(indent=2) }}</pre>
+    {% elif request.args.get('isbn') %}
+        <div class="alert alert-warning">No se encontró información para el ISBN ingresado.</div>
+    {% endif %}
+</div>
+{% endblock %}

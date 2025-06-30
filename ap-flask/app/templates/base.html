@@ -101,7 +101,10 @@
                 <div class="bg-white py-2 collapse-inner rounded">
                     <h6 class="collapse-header">Gestión:</h6>
                     <a class="collapse-item {% if tipo == 'proveedores' %}active{% endif %}" href="{{ url_for('invoices_suppliers.index') }}">📥 Facturas Proveedores</a>
+                    <a class="collapse-item {% if tipo == 'proveedores' %}active{% endif %}" href="{{ url_for('purchases.stock_suppliers') }}">📊 Stock Proveedores</a>
                 </div>
+               
+
             </div>
         </li>        
         <!--li class="nav-item">

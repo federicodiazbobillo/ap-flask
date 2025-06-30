@@ -113,15 +113,15 @@ function abrirModal(itemId, isbn) {
         html += '</form>';
 
         // Botón adicional: Enviar a revisión (siempre visible)
-        html += `
-            <div class="text-center mt-3">
-                <form method="post" action="/purchases/invoices_suppliers/detail/vincular_orden">
-                    <input type="hidden" name="item_id" value="${itemId}">
-                    <input type="hidden" name="order_id" value="9999999999">
-                    <button type="submit" class="btn btn-warning" onclick="return confirm('¿Estás seguro de enviar este ítem a revisión?')">Enviar a revisión</button>
-                </form>
-            </div>
-        `;
+        html += '<div class="text-center mt-3">';
+        html += '<form method="post" action="/purchases/invoices_suppliers/detail/vincular_orden">';
+        html += '<input type="hidden" name="item_id" value="' + itemId + '">';
+        html += '<input type="hidden" name="order_id" value="9999999999">';
+        html += '<button type="submit" class="btn btn-warning" onclick="return confirm(\'¿Estás seguro de enviar este ítem a revisión?\')">';
+        html += 'Enviar a revisión';
+        html += '</button>';
+        html += '</form>';
+        html += '</div>';
 
         document.getElementById("modalContenido").innerHTML = html;
         $('#modalOrdenes').modal('show');
