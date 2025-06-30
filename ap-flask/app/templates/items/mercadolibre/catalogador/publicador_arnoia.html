@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>📚 Libros de Arnoia no publicados en Mercado Libre</h2>
+
+{% if resultados %}
+<table class="table table-bordered table-striped mt-4">
+    <thead>
+        <tr>
+            <th>ISBN</th>
+            <th>Título</th>
+            <th>Editorial</th>
+            <th>Precio</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in resultados %}
+        <tr>
+            <td>{{ item.isbn }}</td>
+            <td>{{ item.titulo }}</td>
+            <td>{{ item.editorial }}</td>
+            <td>{{ item.precio }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info mt-4">No hay resultados para mostrar.</div>
+{% endif %}
+
+{% endblock %}

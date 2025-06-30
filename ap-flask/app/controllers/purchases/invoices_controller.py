@@ -17,7 +17,8 @@ def index():
             SUM(importe) AS total_importe,
             tipo_factura,
             MIN(id) AS ejemplo_id,
-            MIN(tc) AS tipo_cambio
+            MIN(tc) AS tipo_cambio,
+            MAX(guia) AS guia       
         FROM invoices_suppliers
         GROUP BY nro_fc, fecha, proveedor, tipo_factura
         ORDER BY fecha DESC, nro_fc
@@ -120,3 +121,28 @@ def cambiar_tipo_factura():
     cursor.close()
     flash(f"Tipo de factura actualizado a '{nuevo_tipo}'", "success")
     return redirect(request.referrer)
+
+@invoices_bp.post("/set_guia")
+def set_guia():
+    from flask import request, redirect, url_for
+    conn = get_conn()
+    cursor = conn.cursor()
+
+    nro_fc = request.form.get("nro_fc")
+    eliminar = request.form.get("eliminar")
+    guia = request.form.get("guia")
+
+    if eliminar:
+        # Eliminar guía (setear a NULL)
+        cursor.execute("UPDATE invoices_suppliers SET guia = NULL WHERE nro_fc = %s", (nro_fc,))
+    elif guia:
+        # Verificar si la guía ya está asignada
+        cursor.execute("SELECT COUNT(*) FROM invoices_suppliers WHERE guia = %s", (guia,))
+        count = cursor.fetchone()[0]
+
+        if count == 0:
+            cursor.execute("UPDATE invoices_suppliers SET guia = %s WHERE nro_fc = %s", (guia, nro_fc,))
+
+    conn.commit()
+    cursor.close()
+    return redirect(url_for('invoices_suppliers.index'))

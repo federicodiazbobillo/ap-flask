@@ -124,6 +124,18 @@ function abrirModal(itemId, isbn) {
         html += '</form>';
         html += '</div>';
 
+        // Botón adicional: Agregar a stock
+        html += '<div class="text-center mt-2">';
+        html += '<form method="post" action="/purchases/invoices_suppliers/detail/vincular_orden">';
+        html += '<input type="hidden" name="item_id" value="' + itemId + '">';
+        html += '<input type="hidden" name="order_id" value="8888888888">';
+        html += '<button type="submit" class="btn btn-success" onclick="return confirm(\'¿Agregar este ítem directamente al stock?\')">';
+        html += 'Agregar a stock';
+        html += '</button>';
+        html += '</form>';
+        html += '</div>';
+
+
         document.getElementById("modalContenido").innerHTML = html;
         $('#modalOrdenes').modal('show');
     })

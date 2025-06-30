@@ -24,6 +24,7 @@
             <th>Total Amount</th>
             <th>Detalle</th>
             <th>tipo</th>
+            <th>Guía</th>
         </tr>
     </thead>
     <tbody>
@@ -32,7 +33,7 @@
           <td>{{ row[0] }}</td>
           <td>{{ row[1] }}</td>
           <td>{{ row[2] }}</td>
-          <td>{{ row[4] }} / {{ row[3] }}</td>  <!-- sincronizados / total -->          
+          <td>{{ row[4] }} / {{ row[3] }}</td>          
           <td>{{ row[8]|round(2) if row[8] is not none else '-' }}</td>
           <td>€ {{ row[5] | round(2) }}</td>          
           <td>
@@ -40,7 +41,6 @@
                 Ver detalle
             </a>
           </td>
-
           <td>
             {% if row[6] == 'mercaderia' %}
               <form method="post" action="{{ url_for('invoices_suppliers.cambiar_tipo_factura') }}" style="display:inline;">
@@ -55,9 +55,21 @@
                   <button type="submit" class="btn btn-sm btn-secondary">Marcar como mercadería</button>
               </form>
             {% endif %}
-          </td>                   
+          </td>
+          <td>
+            <form method="post" action="{{ url_for('invoices_suppliers.set_guia') }}" style="display:inline;">
+              <input type="hidden" name="nro_fc" value="{{ row[0] }}">
+              <input type="text" name="guia" value="{{ row[9] or '' }}" style="width: 100px;" {% if row[9] %}readonly{% endif %}>
+              {% if row[9] %}
+                <button type="submit" name="eliminar" value="1" title="Eliminar guía">❌</button>
+              {% else %}
+                <button type="submit" title="Guardar guía">💾</button>
+              {% endif %}
+            </form>
+          </td>
       </tr>
       {% endfor %}
     </tbody>
 </table>
+
 {% endblock %}
