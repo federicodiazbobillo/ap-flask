@@ -3,7 +3,7 @@ from app.db import get_conn
 
 orders_logistica_bp = Blueprint('orders_logistica', __name__, url_prefix='/orders/logistica')
 
-def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=None, venc_hasta=None, nota_like=None):
+def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=None, venc_hasta=None, nota_like=None, isbn=None):
     """
     Obtiene órdenes con filtros de ID, rango de creación y rango de vencimiento (inclusive),
     agrupa por pack_id (o order_id si pack_id es null) y normaliza datos.
@@ -33,7 +33,10 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, venc_desde=
     if nota_like:
         filters.append("oi.notas LIKE %s")
         params.append(f"%{nota_like}%")
-
+    if isbn:
+        filters.append("EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.order_id AND oi.seller_sku  = %s)")
+        params.append(isbn)
+    
     # Base de consulta incluyendo JOIN con shipments y order_items
     base_query = (
         "SELECT o.order_id, "
@@ -125,8 +128,9 @@ def index_logistica():
     venc_desde = request.args.get('venc_desde')
     venc_hasta = request.args.get('venc_hasta')
     nota_like = request.args.get("nota")
+    isbn = request.args.get("isbn")
 
-    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like)
+    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like, isbn)
 
     return render_template(
         'orders/logistica.html',
@@ -137,7 +141,8 @@ def index_logistica():
         filtro_fecha_hasta=fecha_hasta,
         filtro_venc_desde=venc_desde,
         filtro_venc_hasta=venc_hasta,
-        nota_like=nota_like
+        nota_like=nota_like,
+        filtro_isbn=isbn
     )
 
 @orders_logistica_bp.route('/search')
@@ -151,8 +156,9 @@ def search_logistica():
     venc_desde = request.args.get('venc_desde')
     venc_hasta = request.args.get('venc_hasta')
     nota_like = request.args.get("nota")
+    isbn =  request.args.get("isbn")
 
-    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like)
+    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like, isbn)
     return jsonify({'orders': orders})
 
 @orders_logistica_bp.route('/actualizar-nota-item', methods=['POST'])

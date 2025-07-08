@@ -40,6 +40,10 @@
       <label for="venc-hasta" class="form-label mr-1">Notas:</label>
       <input type="text" name="nota" class="form-control" placeholder="Buscar nota..." value="{{ request.args.get('nota', '') }}">
     </div>
+    <div class="input-group mb-2 mr-2">
+      <label for="isbn" class="form-label mr-1">ISBN:</label>
+      <input type="text" class="form-control" id="isbn" name="isbn" placeholder="ISBN" value="{{ filtro_isbn or '' }}">
+    </div>
    
 
     <button type="submit" class="btn btn-outline-info mb-2">🔍 Buscar</button>
