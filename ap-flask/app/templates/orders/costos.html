@@ -47,7 +47,12 @@
                  <small class="text-muted">{{ total_ordenes or 0 }} total</small>
                 </th>
                 <th>Fecha</th>
-                <th>Total</th>
+                <th>
+                Total<br>
+                <small class="text-success">
+                    ${{ '%.2f'|format(total_ventas_mxn or 0) }}
+                </small>
+                </th>
                 <th>Estado</th>
                 <th>Envío</th>
                 <th>
@@ -59,6 +64,14 @@
                 <small class="text-success">${{ '%.2f'|format(total_neto or 0) }}</small>
                 </th>
                 <th>📦 Info API</th>
+                <th>
+                Rentabilidad<br>
+                <small>MXN / %</small><br>
+                <small class="text-success">
+                    ${{ '%.2f'|format(total_rentabilidad_mxn or 0) }} /
+                    {{ '%.1f'|format(rentabilidad_promedio_pct or 0) }}%
+                </small>
+                </th>              
             </tr>
         </thead>
         <tbody>
@@ -105,14 +118,25 @@
                 </td>
                 <td>${{ '%.2f'|format(orden.valor_neto or 0) }}</td>
                 <td>
-                {{ orden.stock_info.proveedor }}
-                {% if orden.stock_info.stock is not none %}
-                    <br><small>Stock: {{ orden.stock_info.stock }}</small>
-                {% endif %}
-                {% if orden.stock_info.precio is not none %}
-                    <br><small>Precio: ${{ '%.2f'|format(orden.stock_info.precio) }}</small>
-                {% endif %}
-                </td>            
+                    {{ orden.stock_info.proveedor }}
+                    {% if orden.stock_info.stock is not none %}
+                        <br><small>Stock: {{ orden.stock_info.stock }}</small>
+                    {% endif %}
+                    {% if orden.stock_info.precio is not none %}
+                        <br><small>Precio: ${{ '%.2f'|format(orden.stock_info.precio) }}</small>
+                    {% endif %}
+                    {% if orden.stock_info.costo_estimado is not none %}
+                        <br><small class="text-primary">Costo estimado: ${{ '%.2f'|format(orden.stock_info.costo_estimado) }}</small>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if orden.stock_info.rentabilidad_mxn is not none %}
+                        ${{ '%.2f'|format(orden.stock_info.rentabilidad_mxn) }}
+                        <br><small>{{ '%.1f'|format(orden.stock_info.rentabilidad_pct) }}%</small>
+                    {% else %}
+                        <span class="text-muted">-</span>
+                    {% endif %}
+                </td>        
             </tr>
             {% endfor %}
         </tbody>

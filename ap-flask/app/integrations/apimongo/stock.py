@@ -8,7 +8,7 @@ def obtener_stock_por_isbn(isbn):
     """Consulta la API local por un solo ISBN (versión antigua, aún útil si querés usar individual)."""
     url = f"{LOCAL_API_BASE_URL}/libro?isbn={isbn}"
     try:
-        resp = requests.get(url, headers={"Authorization": f"Bearer {LOCAL_API_TOKEN}"}, timeout=10)
+        resp = requests.get(url, headers={"Authorization": f"Bearer {LOCAL_API_TOKEN}"}, timeout=60)
         resp.raise_for_status()
         return resp.json()
     except requests.RequestException as e:
@@ -23,7 +23,7 @@ def obtener_stock_por_lote(isbns):
             url,
             json={"isbns": isbns},
             headers={"Authorization": f"Bearer {LOCAL_API_TOKEN}"},
-            timeout=20
+            timeout=8600
         )
         resp.raise_for_status()
         return resp.json()  # dict con cada ISBN como clave
