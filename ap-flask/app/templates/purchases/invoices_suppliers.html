@@ -1,8 +1,12 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Inicio</h2>
-
+<h2>Facturas celesa</h2>
+{% if request.args.get('error') %}
+<div class="alert alert-danger">
+  {{ request.args.get('error') }}
+</div>
+{% endif %}
 
 <form action="{{ url_for('invoices_suppliers.upload_celesa') }}" method="post" enctype="multipart/form-data" class="mb-4">
     <div class="form-group">
@@ -59,7 +63,7 @@
           <td>
             <form method="post" action="{{ url_for('invoices_suppliers.set_guia') }}" style="display:inline;">
               <input type="hidden" name="nro_fc" value="{{ row[0] }}">
-              <input type="text" name="guia" value="{{ row[9] or '' }}" style="width: 100px;" {% if row[9] %}readonly{% endif %}>
+              <input type="text" name="guia" value="{{ row[9] if row[9] is not none else '' }}" required style="width: 100px;" {% if row[9] is not none %}readonly{% endif %}>
               {% if row[9] %}
                 <button type="submit" name="eliminar" value="1" title="Eliminar guía">❌</button>
               {% else %}

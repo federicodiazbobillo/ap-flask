@@ -1,3 +1,4 @@
+
 from flask import Blueprint, render_template
 
 # Blueprint with English-named route and endpoint
@@ -124,7 +125,8 @@ def cambiar_tipo_factura():
 
 @invoices_bp.post("/set_guia")
 def set_guia():
-    from flask import request, redirect, url_for
+    from flask import request, redirect, url_for, Response
+    import json
     conn = get_conn()
     cursor = conn.cursor()
 
@@ -133,16 +135,38 @@ def set_guia():
     guia = request.form.get("guia")
 
     if eliminar:
-        # Eliminar guía (setear a NULL)
         cursor.execute("UPDATE invoices_suppliers SET guia = NULL WHERE nro_fc = %s", (nro_fc,))
+        conn.commit()
+        cursor.close()
+        return redirect(url_for('invoices_suppliers.index'))
+
     elif guia:
-        # Verificar si la guía ya está asignada
-        cursor.execute("SELECT COUNT(*) FROM invoices_suppliers WHERE guia = %s", (guia,))
-        count = cursor.fetchone()[0]
+        # Obtener tipo de la factura actual
+        cursor.execute("SELECT tipo_factura FROM invoices_suppliers WHERE nro_fc = %s", (nro_fc,))
+        tipo_actual = cursor.fetchone()[0]
 
-        if count == 0:
-            cursor.execute("UPDATE invoices_suppliers SET guia = %s WHERE nro_fc = %s", (guia, nro_fc,))
+        # Verificar si ya se usó esta guía en el mismo tipo
+        cursor.execute("""
+            SELECT nro_fc
+            FROM invoices_suppliers
+            WHERE guia = %s AND tipo_factura = %s AND nro_fc != %s
+        """, (guia, tipo_actual, nro_fc))
+        row = cursor.fetchone()
 
-    conn.commit()
-    cursor.close()
-    return redirect(url_for('invoices_suppliers.index'))
+        if row:
+            mensaje = f"La guía {guia} ya fue usada en la factura {row[0]} con tipo '{tipo_actual}'"
+            html = f"""
+            <script>
+                alert({json.dumps(mensaje)});
+                window.location.href = "{url_for('invoices_suppliers.index')}";
+            </script>
+            """
+            cursor.close()
+            return Response(html, mimetype='text/html')
+
+
+        # Guardar si no hay conflicto
+        cursor.execute("UPDATE invoices_suppliers SET guia = %s WHERE nro_fc = %s", (guia, nro_fc))
+        conn.commit()
+        cursor.close()
+        return redirect(url_for('invoices_suppliers.index'))

@@ -6,13 +6,33 @@
     <h2>Costos</h2>
 
     <!-- Filtros -->
-    <div class="input-group mb-3" style="max-width: 400px;">
-        <input type="number" class="form-control" id="input-order-id-busqueda" placeholder="ID de orden o pack">
-        <div class="input-group-append">
-            <button class="btn btn-outline-info" type="button" id="btn-buscar-id">🔍 Buscar</button>
-            <button class="btn btn-outline-secondary" type="button" id="btn-limpiar-filtros">🧹 Limpiar filtros</button>
-        </div>
+    <form class="form-inline mb-3" method="get" action="{{ url_for('orders_costos.index_costos') }}">
+    <div class="input-group mr-2 mb-2">
+        <select class="form-control" name="status">
+            <option value="">Todas</option>
+            <option value="paid" {% if request.args.get('status') == 'paid' %}selected{% endif %}>Pagadas</option>
+            <option value="cancelled" {% if request.args.get('status') == 'cancelled' %}selected{% endif %}>Canceladas</option>
+            <option value="otros" {% if request.args.get('status') == 'otros' %}selected{% endif %}>Otros estados</option>
+        </select>
     </div>
+
+    <div class="input-group mr-2 mb-2">
+        <input type="date" class="form-control" name="fecha_desde" value="{{ filtro_fecha_desde or '' }}">
+    </div>
+
+    <div class="input-group mr-2 mb-2">
+        <input type="date" class="form-control" name="fecha_hasta" value="{{ filtro_fecha_hasta or '' }}">
+    </div>
+    <div class="input-group mr-2 mb-2">
+        <input type="text" class="form-control" name="id" placeholder="ID de orden o pack" value="{{ request.args.get('id', '') }}">
+    </div>
+    
+    <div class="input-group mb-2">
+        <button type="submit" class="btn btn-outline-primary">🔍 Buscar</button>
+        <a href="{{ url_for('orders_costos.index_costos') }}" class="btn btn-outline-secondary ml-2">🧹 Limpiar</a>
+    </div>
+    </form>
+
 
 </div>
 
@@ -22,12 +42,23 @@
     <table class="table table-bordered table-striped table-hover nowrap w-100" id="tabla-ordenes">
         <thead class="thead-dark">
             <tr>
-                <th>ID Orden</th>
+                <th>
+                 ID Orden<br>
+                 <small class="text-muted">{{ total_ordenes or 0 }} total</small>
+                </th>
                 <th>Fecha</th>
                 <th>Total</th>
                 <th>Estado</th>
                 <th>Envío</th>
-                <th>Items</th>
+                <th>
+                 Items<br>
+                 <small class="text-info">{{ total_items or 0 }}</small>
+                </th>
+                <th>
+                Neto<br>
+                <small class="text-success">${{ '%.2f'|format(total_neto or 0) }}</small>
+                </th>
+                <th>📦 Info API</th>
             </tr>
         </thead>
         <tbody>
@@ -72,13 +103,20 @@
                         -
                     {% endif %}
                 </td>
+                <td>${{ '%.2f'|format(orden.valor_neto or 0) }}</td>
+                <td>
+                {{ orden.stock_info.proveedor }}
+                {% if orden.stock_info.stock is not none %}
+                    <br><small>Stock: {{ orden.stock_info.stock }}</small>
+                {% endif %}
+                {% if orden.stock_info.precio is not none %}
+                    <br><small>Precio: ${{ '%.2f'|format(orden.stock_info.precio) }}</small>
+                {% endif %}
+                </td>            
             </tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
-
-<script src="{{ url_for('static', filename='js/filtros_aplicados/costos_filtros.js') }}"></script>
-
 
 {% endblock %}

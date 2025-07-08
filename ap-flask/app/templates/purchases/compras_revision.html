@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2>📥 Compras en Revisión</h2>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-hover table-striped">
+        <thead class="thead-dark">
+            <tr>
+                <th>Proveedor</th>
+                <th>Nro. Factura</th>
+                <th>Fecha</th>
+                <th>ISBN</th>
+                <th>Importe</th>
+                <th>Guía</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for compra in compras %}
+            <tr>
+                <td>{{ compra.proveedor }}</td>
+                <td>{{ compra.nro_fc }}</td>
+                <td>{{ compra.fecha.strftime('%Y-%m-%d') if compra.fecha }}</td>
+                <td>{{ compra.isbn }}</td>
+                <td>${{ '%.2f'|format(compra.importe or 0) }}</td>
+                <td>{{ compra.guia or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center">No hay compras en revisión.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
