@@ -1,5 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 
+items_mercadolibre_bp = Blueprint(
+    'items_mercadolibre_bp',
+    __name__,
+    template_folder='app/templates/items/mercadolibre'
+)
+
 @items_mercadolibre_bp.route('/sin_isbn')
 def items_sin_isbn():
     conn = get_app_connection()
