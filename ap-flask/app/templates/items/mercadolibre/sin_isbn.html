@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Items sin ISBN</h1>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>IDML</th>
+                <th>ISBN</th>
+                <th>SKU</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.idml }}</td>
+                <td>{{ item.isbn or '' }}</td>
+                <td>{{ item.seller_sku or '' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
