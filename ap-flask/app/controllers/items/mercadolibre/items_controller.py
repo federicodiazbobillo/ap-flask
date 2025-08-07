@@ -10,4 +10,4 @@ items_mercadolibre_bp = Blueprint(
 
 @items_mercadolibre_bp.route('/sin_isbn')
 def items_sin_isbn():
-    return "🟢 Items sin ISBN funcionando"
+    return render_template("items/mercadolibre/sin_isbn.html", items=[])

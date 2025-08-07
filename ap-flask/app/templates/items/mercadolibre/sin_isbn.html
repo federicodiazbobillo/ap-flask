@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container-fluid">
-    <h1 class="h3 mb-4 text-gray-800">Items sin ISBN</h1>
-    <ul>
-        {% for item in items %}
-        <li>{{ item.idml }} - {{ item.isbn or '' }} - {{ item.seller_sku or '' }}</li>
-        {% endfor %}
-    </ul>
-</div>
+<h1>Items sin ISBN</h1>
+<table>
+    <tr>
+        <th>IDML</th>
+        <th>ISBN</th>
+        <th>SKU</th>
+    </tr>
+    <tr>
+        <td>123</td>
+        <td></td>
+        <td></td>
+    </tr>
+</table>
 {% endblock %}
