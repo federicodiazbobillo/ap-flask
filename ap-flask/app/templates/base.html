@@ -129,7 +129,10 @@
                     <a class="collapse-item" href="{{ url_for('catalogador_bp.items') }}">Catalogar</a>
                     <a class="collapse-item" href="{{ url_for('promociones.listar_promociones') }}">Promociones</a>
                     <a class="collapse-item" href="{{ url_for('publicador_arnoia.index') }}">📥 Publicador Arnoia</a>
-
+    <a class="nav-link" href="{{ url_for('items_mercadolibre.items_sin_isbn') }}">
+        <i class="fas fa-barcode"></i>
+        <span>Items sin ISBN</span>
+    </a>
                 </div>
             </div>
         </li>
