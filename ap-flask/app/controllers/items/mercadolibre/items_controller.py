@@ -1,4 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from app.db import get_conn
+
 
 items_mercadolibre_bp = Blueprint(
     'items_mercadolibre_bp',
@@ -8,7 +10,7 @@ items_mercadolibre_bp = Blueprint(
 
 @items_mercadolibre_bp.route('/sin_isbn')
 def items_sin_isbn():
-    conn = get_app_connection()
+    conn = get_conn()
     with conn.cursor(dictionary=True) as cursor:
         cursor.execute("""
             SELECT isbn, seller_sku, items_meli.idml
