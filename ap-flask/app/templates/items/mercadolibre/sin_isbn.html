@@ -2,20 +2,31 @@
 {% block content %}
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">Items sin ISBN</h1>
+
     <table class="table table-bordered table-sm">
         <thead class="thead-light">
             <tr>
                 <th>IDML</th>
-                <th>ISBN</th>
+                <th>Nuevo ISBN</th>
                 <th>SKU</th>
+                <th>Acción</th>
             </tr>
         </thead>
         <tbody>
             {% for item in items %}
             <tr>
-                <td>{{ item.idml }}</td>
-                <td>{{ item.isbn }}</td>
-                <td>{{ item.seller_sku }}</td>
+                <form action="{{ url_for('items_mercadolibre_bp.asignar_isbn') }}" method="post">
+                    <td>{{ item.idml }}
+                        <input type="hidden" name="idml" value="{{ item.idml }}">
+                    </td>
+                    <td>
+                        <input type="text" name="isbn" class="form-control form-control-sm" required>
+                    </td>
+                    <td>{{ item.seller_sku }}</td>
+                    <td>
+                        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+                    </td>
+                </form>
             </tr>
             {% endfor %}
         </tbody>
