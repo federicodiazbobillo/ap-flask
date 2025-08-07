@@ -22,6 +22,9 @@
                     <td>
                         <input type="text" name="isbn" class="form-control form-control-sm" required>
                     </td>
+                    <td>
+                        <input type="text" name="isbn" class="form-control form-control-sm" value="{{ item.gtin or '' }}">
+                    </td>
                     <td>{{ item.seller_sku }}</td>
                     <td>
                         <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
