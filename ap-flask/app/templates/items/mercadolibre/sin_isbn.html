@@ -3,36 +3,104 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">Items sin ISBN</h1>
 
-    <table class="table table-bordered table-sm">
-        <thead class="thead-light">
-            <tr>
-                <th>IDML</th>
-                <th>Nuevo ISBN</th>
-                <th>SKU</th>
-                <th>Acción</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in items %}
-            <tr>
-                <form action="{{ url_for('items_mercadolibre_bp.asignar_isbn') }}" method="post">
-                    <td>{{ item.idml }}
-                        <input type="hidden" name="idml" value="{{ item.idml }}">
+    <form action="{{ url_for('items_mercadolibre_bp.asignar_isbn_bulk') }}" method="post">
+        <div class="mb-2 d-flex gap-2">
+            <button type="submit" class="btn btn-primary btn-sm">Guardar seleccionados</button>
+
+            <!-- Seleccionar / deseleccionar todos -->
+            <div class="form-check ml-3">
+                <input class="form-check-input" type="checkbox" id="toggle-all" checked>
+                <label class="form-check-label" for="toggle-all">
+                    Tildar / destildar todos
+                </label>
+            </div>
+        </div>
+
+        <table class="table table-bordered table-sm align-middle">
+            <thead class="thead-light">
+                <tr>
+                    <th style="width: 36px;"></th>
+                    <th>IDML</th>
+                    <th>ISBN en BD</th>
+                    <th>Nuevo ISBN</th>
+                    <th>SKU en Meli</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <!-- Checkbox por fila (pre-tildado) -->
+                    <td class="text-center">
+                        <input type="checkbox" name="sel[]" value="{{ item.idml }}" class="row-check" checked>
                     </td>
+
+                    <!-- IDML (y hidden para referencia si lo necesitás en otros campos) -->
                     <td>
-                        <input type="text" name="isbn" class="form-control form-control-sm" required>
+                        {{ item.idml }}
+                        <!-- no es estrictamente necesario, usamos el valor del checkbox -->
                     </td>
+
+                    <!-- ISBN almacenado en tu DB -->
+                    <td>{{ item.isbn or '' }}</td>
+
+                    <!-- Nuevo ISBN (prefill con GTIN o ISBN en DB si no hay GTIN) -->
                     <td>
-                        <input type="text" name="isbn" class="form-control form-control-sm" value="{{ item.gtin or '' }}">
+                        <input
+                            type="text"
+                            name="isbn[{{ item.idml }}]"
+                            class="form-control form-control-sm"
+                            value="{{ item.gtin or '' }}"
+                            placeholder="Ingresa ISBN"
+                            required
+                        >
                     </td>
-                    <td>{{ item.seller_sku }}</td>
+
+                    <!-- GTIN de ML (solo lectura) -->
                     <td>
-                        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+                        <input
+                            type="text"
+                            class="form-control form-control-sm"
+                            value="{{ item.gtin or '' }}"
+                            readonly
+                            tabindex="-1"
+                        >
                     </td>
-                </form>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="mt-2">
+            <button type="submit" class="btn btn-primary btn-sm">Guardar seleccionados</button>
+        </div>
+    </form>
 </div>
+
+<!-- Toggle all checkboxes -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const toggleAll = document.getElementById('toggle-all');
+    const checks = document.querySelectorAll('.row-check');
+
+    function setAll(val) {
+        checks.forEach(ch => ch.checked = val);
+    }
+
+    toggleAll.addEventListener('change', function () {
+        setAll(this.checked);
+    });
+
+    // Si el usuario destilda alguno manualmente, el master no debe “forzar” checked visual
+    checks.forEach(ch => {
+        ch.addEventListener('change', function () {
+            if (!this.checked) toggleAll.checked = false;
+            else {
+                // si todos están tildados, reflejarlo en el master
+                const allChecked = Array.from(checks).every(x => x.checked);
+                toggleAll.checked = allChecked;
+            }
+        });
+    });
+});
+</script>
 {% endblock %}

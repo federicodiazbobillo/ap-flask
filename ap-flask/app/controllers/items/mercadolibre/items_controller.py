@@ -68,36 +68,113 @@ def asignar_isbn():
 @items_mercadolibre_bp.route('/sin_isbn')
 def items_sin_isbn():
     access_token, user_id, error = verificar_meli()
-
     if not access_token:
         flash("No se pudo obtener el token de Mercado Libre", "danger")
         return redirect(url_for('home.index'))
 
-    cursor = get_conn().cursor()
-    cursor.execute("""
-        SELECT isbn, seller_sku, items_meli.idml
-        FROM items_meli, order_items 
-        WHERE 
-          CONVERT(items_meli.idml USING utf8mb4) COLLATE utf8mb4_unicode_ci = 
-          CONVERT(order_items.item_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
-          AND order_items.seller_sku IS NULL
-        LIMIT 100
-    """)
-    columnas = [col[0] for col in cursor.description]
-    filas = cursor.fetchall()
-    cursor.close()
+    conn = get_conn()
+    cursor = conn.cursor()
+    try:
+        # Trae datos base: idml, isbn (DB) y seller_sku (debería venir NULL por el filtro)
+        cursor.execute("""
+            SELECT 
+                im.isbn        AS isbn,
+                oi.seller_sku  AS seller_sku,
+                im.idml        AS idml
+            FROM items_meli im
+            JOIN order_items oi
+              ON CONVERT(im.idml USING utf8mb4) COLLATE utf8mb4_unicode_ci =
+                 CONVERT(oi.item_id USING utf8mb4) COLLATE utf8mb4_unicode_ci
+            WHERE oi.seller_sku IS NULL
+            LIMIT 100
+        """)
+        columnas = [col[0] for col in cursor.description]
+        filas = cursor.fetchall()
+    finally:
+        try:
+            cursor.close()
+        except Exception:
+            pass
+        # Si usás flask_mysqldb, no cierres aquí conn; lo hace el teardown.
+
+    # Normalizamos filas a dicts de strings (evita None en el template)
+    registros = [
+        {col: ('' if val is None else str(val)) for col, val in zip(columnas, fila)}
+        for fila in filas
+    ]
 
     BATCH_SIZE = 20
     resultados = []
 
-    for i in range(0, len(filas), BATCH_SIZE):
-        batch = filas[i:i + BATCH_SIZE]
-        idmls = [str(f[2]) for f in batch]  # idml está en la columna 3
-        gtins = obtener_gtins_batch(idmls, access_token)
+    # Procesamos en lotes para pedir GTINs a ML
+    for i in range(0, len(registros), BATCH_SIZE):
+        batch = registros[i:i + BATCH_SIZE]
+        idmls = [r['idml'] for r in batch if r.get('idml')]
 
-        for fila in batch:
-            fila_dict = {col: str(valor or '') for col, valor in zip(columnas, fila)}
-            fila_dict["gtin"] = gtins.get(fila_dict["idml"], "")
-            resultados.append(fila_dict)
+        gtins = obtener_gtins_batch(idmls, access_token) if idmls else {}  # {idml: gtin}
+
+        for r in batch:
+            idml = r.get('idml', '')
+            gtin_ml = gtins.get(idml, '')
+
+            # Sugerencia para "Nuevo ISBN": GTIN si existe, si no el ISBN de la DB
+            sugerido = gtin_ml or r.get('isbn', '')
+
+            resultados.append({
+                'idml': idml,
+                'isbn': r.get('isbn', ''),           # ISBN en BD (items_meli.isbn)
+                'seller_sku': r.get('seller_sku',''),# No lo mostramos en este módulo, pero lo dejamos por si se usa luego
+                'gtin': sugerido                      # Valor sugerido para el input "Nuevo ISBN"
+            })
 
     return render_template("items/mercadolibre/sin_isbn.html", items=resultados)
+
+
+@items_mercadolibre_bp.route('/asignar_isbn_bulk', methods=['POST'])
+def asignar_isbn_bulk():
+    # IDs seleccionados (tildados)
+    seleccionados = request.form.getlist('sel[]')          # lista de idml
+    # ISBNs por idml (vienen con clave tipo isbn[<idml>])
+    # En request.form las claves son literales, ejemplo: "isbn[MLM123]"
+    # Vamos a leer por cada idml seleccionado su ISBN correspondiente
+    if not seleccionados:
+        flash("No hay ítems seleccionados.", "warning")
+        return redirect(url_for('items_mercadolibre_bp.items_sin_isbn'))
+
+    conn = get_conn()
+    cursor = conn.cursor()
+    ok, skipped, errors = 0, 0, 0
+
+    for idml in seleccionados:
+        isbn_val = request.form.get(f'isbn[{idml}]', '').strip()
+        if not isbn_val:
+            skipped += 1
+            continue
+        try:
+            cursor.execute("""
+                UPDATE order_items
+                SET seller_sku = %s
+                WHERE CONVERT(item_id USING utf8mb4) COLLATE utf8mb4_unicode_ci =
+                      CONVERT(%s USING utf8mb4) COLLATE utf8mb4_unicode_ci
+            """, (isbn_val, idml))
+            ok += cursor.rowcount
+        except Exception as e:
+            errors += 1
+            print(f"❌ Error al asignar ISBN para {idml}: {e}")
+
+    try:
+        conn.commit()
+    finally:
+        cursor.close()
+        # Si usás flask_mysqldb, podés dejar que el teardown cierre la conexión.
+
+    msg = f"✅ Actualizados: {ok}"
+    if skipped:
+        msg += f" | ⏭️ Omitidos (sin ISBN): {skipped}"
+    if errors:
+        msg += f" | ❌ Errores: {errors}"
+    flash(msg, "info")
+
+    return redirect(url_for('items_mercadolibre_bp.items_sin_isbn'))
+
+
