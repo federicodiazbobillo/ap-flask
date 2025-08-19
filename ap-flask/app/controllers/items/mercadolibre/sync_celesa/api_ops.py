@@ -11,6 +11,8 @@ def _bp():
 # DB
 from app.db import get_conn
 
+# Reglas de sale_terms
+from .parametros_sale_terms_celesa import get_sale_term_for_stock
 
 # Token (opcional)
 try:
@@ -39,7 +41,7 @@ def _ml_get_item(idml, timeout=15):
     try:
         r = requests.get(url, headers=headers, timeout=timeout)
         if r.status_code in (401, 403) and headers:
-            # reintento sin token por si aplica
+            # reintento sin token por si aplica (sólo GET)
             r = requests.get(url, timeout=timeout)
         if r.status_code == 200:
             return r.json(), 200
@@ -57,17 +59,29 @@ def _ml_get_item_backoff(idml, max_retries=5):
             continue
         return js, code
 
+def _safe_json_text(resp):
+    try:
+        return resp.json()
+    except Exception:
+        try:
+            return resp.text
+        except Exception:
+            return None
+
 def _ml_put_item(idml, payload, timeout=25):
+    """Devuelve (status_code, detail) donde detail es json o texto de ML (si hay)."""
     url = f"https://api.mercadolibre.com/items/{idml}"
     headers = {"Content-Type": "application/json", **_prefer_token_header()}
     try:
         r = requests.put(url, headers=headers, json=payload, timeout=timeout)
-        # Si 401/403 con token, intentá sin token (según permisos del app)
+        detail = _safe_json_text(r)
+        # Para PUT, sin token no sirve, pero si tu app tuviese permisos anónimos (raro) podrías reintentar:
         if r.status_code in (401, 403) and "Authorization" in headers:
-            r = requests.put(url, headers={"Content-Type": "application/json"}, json=payload, timeout=timeout)
-        return r.status_code
-    except Exception:
-        return 0  # error de red/timeout
+            r2 = requests.put(url, headers={"Content-Type": "application/json"}, json=payload, timeout=timeout)
+            return r2.status_code, _safe_json_text(r2)
+        return r.status_code, detail
+    except Exception as e:
+        return 0, f"{type(e).__name__}: {e}"
 
 
 # -------------------- Helpers de negocio --------------------
@@ -102,9 +116,8 @@ def _is_full_item(js: dict) -> bool:
 
 def _build_sale_terms_for(stock: int) -> list:
     """Arma sale_terms según reglas y stock."""
-    # MANUFACTURING_TIME:
     if stock <= 0:
-        manuf_days = 35  # regla explícita para stock 0
+        manuf_days = 35  # explícito para stock 0
     else:
         rule = get_sale_term_for_stock(stock, provider='celesa') or {}
         try:
@@ -131,17 +144,15 @@ def _build_put_payload(stock: int) -> dict:
 @_bp().route('/bulk-put', methods=['POST'], endpoint='bulk_put')
 def bulk_put():
     """
-    Body esperado (front envía 1 por llamada):
-      { "ids": ["MLA123456"] }
+    Body esperado:
+      { "ids": ["MLA123456"] }   # el front manda 1 por request
 
     Flujo por idml:
-      1) GET /items/{idml}
-         - si != 200 => devolver "GET:{code}"
-      2) Si FULL => devolver "full"
-      3) Si status no es active|paused => devolver "<status>"
-      4) Armar payload con stock_celesa y sale_terms
-      5) PUT /items/{idml}  (sleep(2) antes para emular progreso visual)
-         - devolver código del PUT (200/4xx/5xx o 0 si error de red)
+      1) GET /items/{idml}    -> si != 200 => "GET:{code}"
+      2) Si FULL              -> "full"
+      3) Si status !in {active,paused} -> "<status>"
+      4) payload (stock + sale_terms) desde DB y reglas
+      5) sleep(2) y PUT       -> devolver código del PUT
     """
     data = request.get_json(silent=True) or {}
     ids = [str(x).strip() for x in (data.get('ids') or []) if str(x).strip()]
@@ -149,32 +160,44 @@ def bulk_put():
         return jsonify({"error": "ids_required"}), 400
 
     results = {}
+    debug = {}
 
     for idml in ids:
-        # 1) GET
-        item_js, get_code = _ml_get_item_backoff(idml)
-        if get_code != 200:
-            results[idml] = f"GET:{get_code}"
-            continue
+        try:
+            # 1) GET
+            item_js, get_code = _ml_get_item_backoff(idml)
+            if get_code != 200:
+                results[idml] = f"GET:{get_code}"
+                debug[idml] = {"step": "GET", "code": get_code}
+                continue
 
-        # 2) FULL?
-        if _is_full_item(item_js or {}):
-            results[idml] = "full"
-            continue
+            # 2) FULL?
+            if _is_full_item(item_js or {}):
+                results[idml] = "full"
+                debug[idml] = {"step": "SKIP", "reason": "full"}
+                continue
 
-        # 3) status permitido?
-        curr_status = (item_js or {}).get("status") or ""
-        if curr_status not in ("active", "paused"):
-            results[idml] = str(curr_status or "unknown_status")
-            continue
+            # 3) status permitido?
+            curr_status = (item_js or {}).get("status") or ""
+            if curr_status not in ("active", "paused"):
+                results[idml] = str(curr_status or "unknown_status")
+                debug[idml] = {"step": "SKIP", "reason": "status_not_updatable", "status": curr_status}
+                continue
 
-        # 4) stock + sale_terms
-        stock = _get_stock_celesa(idml)
-        payload = _build_put_payload(stock)
+            # 4) stock + sale_terms
+            stock = _get_stock_celesa(idml)
+            payload = _build_put_payload(stock)
 
-        # 5) PUT (con sleep para emular tiempo visible en UI)
-        time.sleep(2)
-        put_code = _ml_put_item(idml, payload)
-        results[idml] = put_code
+            # 5) PUT (con sleep para que el slider se vea)
+            time.sleep(2)
+            put_code, put_detail = _ml_put_item(idml, payload)
+            results[idml] = put_code
+            debug[idml] = {"step": "PUT", "code": put_code, "payload": payload, "detail": put_detail}
 
-    return jsonify({"results": results}), 200
+        except Exception as e:
+            # pase lo que pase, no rompemos todo el endpoint
+            results[idml] = "ERR"
+            debug[idml] = {"step": "EXC", "error": f"{type(e).__name__}: {e}"}
+
+    # results es lo que usa tu UI; debug te ayuda a ver el motivo real si no es 200
+    return jsonify({"results": results, "debug": debug}), 200
