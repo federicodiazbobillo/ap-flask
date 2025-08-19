@@ -1,59 +1,65 @@
 # app/controllers/items/mercadolibre/sync_celesa/parametros_sale_terms_celesa.py
 from flask import render_template, request, redirect, url_for, flash, jsonify
 
-# Obtiene el blueprint sin exponerlo como atributo del módulo
+# Obtener el blueprint sin exponerlo a nivel de módulo
 def _bp():
     from .index import sync_celesa_bp
     return sync_celesa_bp
 
-# Import absoluto del helper de DB (ajustado a tu proyecto)
+# Conexión (tu helper real)
 from app.db import get_conn
 
 ALLOWED_ACTIONS = {"publicar", "pausar"}
 
-# ---- helpers de cursores ----
-def _dict_cursor(conn):
-    """
-    Devuelve un cursor que entrega dicts si es posible.
-    Soporta mysql-connector (dictionary=True) y PyMySQL (DictCursor).
-    """
+# ------------------- Helpers DB -------------------
+def _safe_ping(conn):
+    """Intenta reconectar si la conexión se cayó (MySQLdb/PyMySQL)."""
     try:
-        return conn.cursor(dictionary=True)  # mysql-connector
+        conn.ping(reconnect=True)
     except Exception:
-        try:
-            from pymysql.cursors import DictCursor  # PyMySQL
-            return conn.cursor(DictCursor)
-        except Exception:
-            return conn.cursor()  # fallback a tuplas
+        pass
 
-# ---- helper: crear tabla si no existe ----
+def _rows_to_dicts(rows, cols):
+    """Convierte filas (tuplas) en lista de dicts con columnas dadas."""
+    out = []
+    for r in rows:
+        out.append({c: r[i] for i, c in enumerate(cols)})
+    return out
+
+# ------------------- DDL -------------------
 def ensure_table():
     conn = get_conn()
+    _safe_ping(conn)
     cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS sale_terms_celesa (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          provider VARCHAR(100) NOT NULL DEFAULT 'celesa',
-          max_stock INT NOT NULL,
-          action VARCHAR(50) NOT NULL,
-          delivery_days INT NOT NULL,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        )
-    """)
-    # índices (compatibles con distintas versiones de MySQL/MariaDB)
     try:
-        cur.execute("CREATE INDEX idx_stc_provider ON sale_terms_celesa (provider)")
-    except Exception:
-        pass
-    try:
-        cur.execute("CREATE INDEX idx_stc_max ON sale_terms_celesa (max_stock)")
-    except Exception:
-        pass
-    conn.commit()
-    cur.close()
-    conn.close()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS sale_terms_celesa (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              provider VARCHAR(100) NOT NULL DEFAULT 'celesa',
+              max_stock INT NOT NULL,
+              action VARCHAR(50) NOT NULL,
+              delivery_days INT NOT NULL,
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        """)
+        # índices (ignorar si ya existen)
+        try:
+            cur.execute("CREATE INDEX idx_stc_provider ON sale_terms_celesa (provider)")
+        except Exception:
+            pass
+        try:
+            cur.execute("CREATE INDEX idx_stc_max ON sale_terms_celesa (max_stock)")
+        except Exception:
+            pass
+        conn.commit()
+    finally:
+        try: cur.close()
+        except Exception: pass
+        try: conn.close()
+        except Exception: pass
 
+# ------------------- Validación -------------------
 def _validate(provider, max_stock, action, delivery_days):
     errs = []
     if not provider:
@@ -74,21 +80,33 @@ def _validate(provider, max_stock, action, delivery_days):
         errs.append("delivery_days debe ser numérico.")
     return errs
 
-# ---------- UI ----------
+# ------------------- UI -------------------
 @_bp().route('/sale-terms', methods=['GET'])
 def sale_terms_index():
     ensure_table()
     conn = get_conn()
-    cur = _dict_cursor(conn)
-    cur.execute("SELECT * FROM sale_terms_celesa ORDER BY provider ASC, max_stock ASC")
-    rows = cur.fetchall()
-    cur.close()
-    conn.close()
-    return render_template(
-        'items/mercadolibre/sync_celesa/parametros_sale_terms_celesa.html',
-        rows=rows,
-        allowed_actions=sorted(ALLOWED_ACTIONS)
-    )
+    _safe_ping(conn)
+    cur = conn.cursor()
+    try:
+        # Selección explícita de columnas para orden fijo
+        cols = ["id", "provider", "max_stock", "action", "delivery_days", "created_at", "updated_at"]
+        cur.execute("""
+            SELECT id, provider, max_stock, action, delivery_days, created_at, updated_at
+            FROM sale_terms_celesa
+            ORDER BY provider ASC, max_stock ASC
+        """)
+        rows = cur.fetchall()  # tuplas
+        rows_dict = _rows_to_dicts(rows, cols)  # opcional: para que el template use keys
+        return render_template(
+            'items/mercadolibre/sync_celesa/parametros_sale_terms_celesa.html',
+            rows=rows_dict,
+            allowed_actions=sorted(ALLOWED_ACTIONS)
+        )
+    finally:
+        try: cur.close()
+        except Exception: pass
+        try: conn.close()
+        except Exception: pass
 
 @_bp().route('/sale-terms/create', methods=['POST'])
 def sale_terms_create():
@@ -104,15 +122,21 @@ def sale_terms_create():
         return redirect(url_for('sync_celesa_bp.sale_terms_index'))
 
     conn = get_conn()
+    _safe_ping(conn)
     cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO sale_terms_celesa (provider, max_stock, action, delivery_days)
-        VALUES (%s, %s, %s, %s)
-    """, (provider, int(max_stock), action, int(delivery_days)))
-    conn.commit()
-    cur.close()
-    conn.close()
-    flash("Regla creada.", "success")
+    try:
+        cur.execute("""
+            INSERT INTO sale_terms_celesa (provider, max_stock, action, delivery_days)
+            VALUES (%s, %s, %s, %s)
+        """, (provider, int(max_stock), action, int(delivery_days)))
+        conn.commit()
+        flash("Regla creada.", "success")
+    finally:
+        try: cur.close()
+        except Exception: pass
+        try: conn.close()
+        except Exception: pass
+
     return redirect(url_for('sync_celesa_bp.sale_terms_index'))
 
 @_bp().route('/sale-terms/update/<int:row_id>', methods=['POST'])
@@ -129,74 +153,91 @@ def sale_terms_update(row_id):
         return redirect(url_for('sync_celesa_bp.sale_terms_index'))
 
     conn = get_conn()
+    _safe_ping(conn)
     cur = conn.cursor()
-    cur.execute("""
-        UPDATE sale_terms_celesa
-        SET provider=%s, max_stock=%s, action=%s, delivery_days=%s
-        WHERE id=%s
-    """, (provider, int(max_stock), action, int(delivery_days), row_id))
-    conn.commit()
-    cur.close()
-    conn.close()
-    flash("Regla actualizada.", "success")
+    try:
+        cur.execute("""
+            UPDATE sale_terms_celesa
+            SET provider=%s, max_stock=%s, action=%s, delivery_days=%s
+            WHERE id=%s
+        """, (provider, int(max_stock), action, int(delivery_days), row_id))
+        conn.commit()
+        flash("Regla actualizada.", "success")
+    finally:
+        try: cur.close()
+        except Exception: pass
+        try: conn.close()
+        except Exception: pass
+
     return redirect(url_for('sync_celesa_bp.sale_terms_index'))
 
 @_bp().route('/sale-terms/delete/<int:row_id>', methods=['POST'])
 def sale_terms_delete(row_id):
     conn = get_conn()
+    _safe_ping(conn)
     cur = conn.cursor()
-    cur.execute("DELETE FROM sale_terms_celesa WHERE id=%s", (row_id,))
-    conn.commit()
-    cur.close()
-    conn.close()
-    flash("Regla eliminada.", "warning")
+    try:
+        cur.execute("DELETE FROM sale_terms_celesa WHERE id=%s", (row_id,))
+        conn.commit()
+        flash("Regla eliminada.", "warning")
+    finally:
+        try: cur.close()
+        except Exception: pass
+        try: conn.close()
+        except Exception: pass
+
     return redirect(url_for('sync_celesa_bp.sale_terms_index'))
 
-# ---------- API para modal ----------
+# ------------------- API (para modal) -------------------
 @_bp().route('/sale-terms/get/<int:row_id>', methods=['GET'])
 def sale_terms_get(row_id):
     conn = get_conn()
-    cur = _dict_cursor(conn)
-    cur.execute("""
-        SELECT id, provider, max_stock, action, delivery_days
-        FROM sale_terms_celesa
-        WHERE id=%s
-    """, (row_id,))
-    row = cur.fetchone()
-    cur.close()
-    conn.close()
-    if not row:
-        return jsonify({"error": "not_found"}), 404
-    return jsonify(row)
+    _safe_ping(conn)
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT id, provider, max_stock, action, delivery_days
+            FROM sale_terms_celesa
+            WHERE id=%s
+        """, (row_id,))
+        row = cur.fetchone()  # tupla
+        if not row:
+            return jsonify({"error": "not_found"}), 404
+        cols = ["id", "provider", "max_stock", "action", "delivery_days"]
+        row_dict = {c: row[i] for i, c in enumerate(cols)}
+        return jsonify(row_dict)
+    finally:
+        try: cur.close()
+        except Exception: pass
+        try: conn.close()
+        except Exception: pass
 
-# ---------- Helper para usar en el sync ----------
+# ------------------- Helper interno -------------------
 def get_sale_term_for_stock(stock, provider='celesa'):
     """
-    Devuelve el dict de la regla aplicable (o None).
+    Devuelve la regla aplicable como dict (o None).
     Rangos: 0..max1, (max1+1)..max2, ...
     """
     if stock is None:
         stock = 0
     conn = get_conn()
-    cur = _dict_cursor(conn)
-    cur.execute("""
-        SELECT * FROM sale_terms_celesa
-        WHERE provider=%s
-        ORDER BY max_stock ASC
-    """, (provider,))
-    for row in cur.fetchall():
-        try:
-            # si es dict
-            if stock <= int(row['max_stock']):
-                cur.close()
-                conn.close()
-                return row
-        except Exception:
-            # si es tupla
-            if stock <= row[2]:
-                cur.close()
-                conn.close()
-                return row
-    cur.close()
-    conn.close()
-    return None
+    _safe_ping(conn)
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT id, provider, max_stock, action, delivery_days
+            FROM sale_terms_celesa
+            WHERE provider=%s
+            ORDER BY max_stock ASC
+        """, (provider,))
+        cols = ["id", "provider", "max_stock", "action", "delivery_days"]
+        for row in cur.fetchall():  # tuplas
+            # max_stock es la 3ra columna (índice 2)
+            if stock <= int(row[2]):
+                return {c: row[i] for i, c in enumerate(cols)}
+        return None
+    finally:
+        try: cur.close()
+        except Exception: pass
+        try: conn.close()
+        except Exception: pass
