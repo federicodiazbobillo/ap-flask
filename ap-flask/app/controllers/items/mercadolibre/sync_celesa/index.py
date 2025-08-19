@@ -60,7 +60,11 @@ def build_where_for_list(statuses_only, include_null, isbn_ok, stock_filter):
     elif stock_filter == 'celesa_positive_ml_zero':
         clauses.append("(COALESCE(stock_celesa, 0) > 0 AND COALESCE(stock_idml, 0) = 0)")
     elif stock_filter == 'celesa_diff':
-        clauses.append("(COALESCE(stock_celesa, -1) <> COALESCE(stock_idml, -1))")
+        clauses.append("""
+            (COALESCE(stock_celesa, 0) > 0)
+            AND (COALESCE(stock_idml, 0) > 0)
+            AND (COALESCE(stock_celesa, 0) <> COALESCE(stock_idml, 0))
+        """)
 
     where_sql = " AND ".join(clauses) if clauses else "1=1"
     return where_sql, params
