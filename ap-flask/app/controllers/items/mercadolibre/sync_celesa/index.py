@@ -23,7 +23,7 @@ JOBS = {}  # job_id -> dict
 @sync_celesa_bp.route("/", methods=["GET"])
 def index():
     # templates/mercadolibre/sync_celesa/index.html
-    return render_template("mercadolibre/sync_celesa/index.html")
+    return render_template("items/mercadolibre/celesa_sync/index.html")
 
 # ===== Helper compartido: WHERE para el listado =====
 def build_where_for_list(statuses_only, include_null, isbn_ok, stock_filter):
@@ -66,4 +66,4 @@ def build_where_for_list(statuses_only, include_null, isbn_ok, stock_filter):
 # ===== Importa submódulos para adjuntar rutas al blueprint =====
 from . import condiciones_generales  # noqa: E402,F401
 from . import manejo_de_stock        # noqa: E402,F401
-from . import parametros_sale_terms_celesa  # <<< añade este import
+#from . import parametros_sale_terms_celesa  # <<< añade este import
