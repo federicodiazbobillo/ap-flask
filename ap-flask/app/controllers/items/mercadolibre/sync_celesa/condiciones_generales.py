@@ -7,11 +7,6 @@ import threading
 import requests
 from flask import jsonify
 
-@_bp().route('/bulk-put', methods=['POST'])
-def bulk_put():
-    # stub temporal
-    return jsonify({"ok": True}), 200
-
 
 from flask import (
     render_template, request, redirect, url_for, jsonify, current_app
