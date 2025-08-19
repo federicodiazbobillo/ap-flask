@@ -1,14 +1,13 @@
 # app/controllers/items/mercadolibre/sync_celesa/parametros_sale_terms_celesa.py
 from flask import render_template, request, redirect, url_for, flash, jsonify
-from app.controllers.items.mercadolibre.sync_celesa.index import sync_celesa_bp
 
-# ---- conexión MySQL ----
-try:
-    # si usás utils.db
-    from utils.db import get_conn
-except Exception:
-    # si usás db.get_app_connection()
-    from db import get_app_connection as get_conn
+# Obtiene el blueprint sin exponerlo como atributo del módulo
+def _bp():
+    from .index import sync_celesa_bp
+    return sync_celesa_bp
+
+# Import absoluto del helper de DB (ajustado a tu proyecto)
+from app.db import get_conn
 
 ALLOWED_ACTIONS = {"publicar", "pausar"}
 
@@ -76,7 +75,7 @@ def _validate(provider, max_stock, action, delivery_days):
     return errs
 
 # ---------- UI ----------
-@sync_celesa_bp.route('/sale-terms', methods=['GET'])
+@_bp().route('/sale-terms', methods=['GET'])
 def sale_terms_index():
     ensure_table()
     conn = get_conn()
@@ -86,12 +85,12 @@ def sale_terms_index():
     cur.close()
     conn.close()
     return render_template(
-        'mercadolibre/sync_celesa/sale_terms_celesa.html',  # ruta de template corregida
+        'items/mercadolibre/sync_celesa/parametros_sale_terms_celesa.html',
         rows=rows,
         allowed_actions=sorted(ALLOWED_ACTIONS)
     )
 
-@sync_celesa_bp.route('/sale-terms/create', methods=['POST'])
+@_bp().route('/sale-terms/create', methods=['POST'])
 def sale_terms_create():
     provider = (request.form.get('provider') or 'celesa').strip()
     max_stock = request.form.get('max_stock')
@@ -116,7 +115,7 @@ def sale_terms_create():
     flash("Regla creada.", "success")
     return redirect(url_for('sync_celesa_bp.sale_terms_index'))
 
-@sync_celesa_bp.route('/sale-terms/update/<int:row_id>', methods=['POST'])
+@_bp().route('/sale-terms/update/<int:row_id>', methods=['POST'])
 def sale_terms_update(row_id):
     provider = (request.form.get('provider') or 'celesa').strip()
     max_stock = request.form.get('max_stock')
@@ -142,7 +141,7 @@ def sale_terms_update(row_id):
     flash("Regla actualizada.", "success")
     return redirect(url_for('sync_celesa_bp.sale_terms_index'))
 
-@sync_celesa_bp.route('/sale-terms/delete/<int:row_id>', methods=['POST'])
+@_bp().route('/sale-terms/delete/<int:row_id>', methods=['POST'])
 def sale_terms_delete(row_id):
     conn = get_conn()
     cur = conn.cursor()
@@ -154,7 +153,7 @@ def sale_terms_delete(row_id):
     return redirect(url_for('sync_celesa_bp.sale_terms_index'))
 
 # ---------- API para modal ----------
-@sync_celesa_bp.route('/sale-terms/get/<int:row_id>', methods=['GET'])
+@_bp().route('/sale-terms/get/<int:row_id>', methods=['GET'])
 def sale_terms_get(row_id):
     conn = get_conn()
     cur = _dict_cursor(conn)
@@ -186,14 +185,14 @@ def get_sale_term_for_stock(stock, provider='celesa'):
         ORDER BY max_stock ASC
     """, (provider,))
     for row in cur.fetchall():
-        # stock <= tope del rango
         try:
-            if stock <= int(row['max_stock'] if isinstance(row, dict) else row[2]):
+            # si es dict
+            if stock <= int(row['max_stock']):
                 cur.close()
                 conn.close()
                 return row
         except Exception:
-            # si el cursor no es dict, row[2] corresponde a max_stock según el SELECT *
+            # si es tupla
             if stock <= row[2]:
                 cur.close()
                 conn.close()

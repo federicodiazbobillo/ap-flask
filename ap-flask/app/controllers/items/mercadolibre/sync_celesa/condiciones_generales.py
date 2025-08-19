@@ -232,7 +232,7 @@ def _job_make(job_type, filters):
 
 
 # ------------------- UI: listado / página principal -------------------
-@_bp().route('/sync_celesa', endpoint='index')
+@_bp().route('/sync_celesa')
 def sync_celesa_list():
     # Paginación
     try:
