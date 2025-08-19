@@ -22,8 +22,9 @@ JOBS = {}  # job_id -> dict
 # ===== Home de Sync Celesa =====
 @sync_celesa_bp.route("/", methods=["GET"])
 def index():
-    # templates/mercadolibre/sync_celesa/index.html
-    return render_template("items/mercadolibre/sync_celesa/index.html")
+    # Redirige preservando los query params (page, status, isbn_ok, tab, etc.)
+    params = request.args.to_dict(flat=False)
+    return redirect(url_for("sync_celesa_bp.sync_celesa_list", **params), code=302)
 
 # ===== Helper compartido: WHERE para el listado =====
 def build_where_for_list(statuses_only, include_null, isbn_ok, stock_filter):
