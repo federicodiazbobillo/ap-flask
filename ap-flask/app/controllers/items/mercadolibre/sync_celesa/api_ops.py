@@ -21,7 +21,7 @@ except Exception:
 from app.db import get_conn
 
 # Regla de sale terms por stock
-from .parametros_sale_terms_celesa import get_sale_term_for_stock
+#from .parametros_sale_terms_celesa import get_sale_term_for_stock
 
 
 # -------------------- Helpers token / headers --------------------
