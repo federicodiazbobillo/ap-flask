@@ -1,5 +1,6 @@
 # app/controllers/items/mercadolibre/sync_celesa/index.py
-from flask import Blueprint, render_template
+from flask import Blueprint, redirect, url_for, request
+
 
 # ===== ÚNICO blueprint =====
 sync_celesa_bp = Blueprint(
