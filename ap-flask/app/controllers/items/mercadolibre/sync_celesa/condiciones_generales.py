@@ -5,7 +5,7 @@ import time
 import uuid
 import threading
 import requests
-from flask import jsonify
+
 
 
 
@@ -13,10 +13,13 @@ from flask import (
     render_template, request, redirect, url_for, jsonify, current_app
 )
 
-@_bp().route('/bulk-put', methods=['POST'])
+@sync_celesa_bp.route('/bulk-put', methods=['POST'])
 def bulk_put():
-    # stub temporal
-    return jsonify({"ok": True}), 200
+    # Stub temporal para que url_for('sync_celesa_bp.bulk_put') exista y responda.
+    payload = request.get_json(silent=True) or {}
+    ids = payload.get('ids') or []
+    # Devolvemos 200 para cada id, para que el front muestre "200" luego del sleep.
+    return jsonify({"results": {str(i): 200 for i in ids}}), 200
 
 # OJO: no exponemos el blueprint como variable global en este módulo.
 # Usamos un helper para obtenerlo cuando hace falta:
