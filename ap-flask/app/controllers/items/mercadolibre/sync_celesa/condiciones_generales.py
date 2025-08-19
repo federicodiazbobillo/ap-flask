@@ -318,7 +318,7 @@ def sync_celesa_list():
     end = min(offset + PAGE_SIZE, total)
 
     return render_template(
-        'items/mercadolibre/sync_celesa.html',
+        'items/mercadolibre/sync_celesa/index.html',
         rows=rows,
         page=page,
         total_pages=total_pages,

@@ -3,7 +3,9 @@
 {% block content %}
 
 <h3 class="mb-3">Sync Celesa</h3>
-
+  <a href="{{ url_for('sync_celesa_bp.sale_terms_index') }}" class="btn btn-primary btn-sm">
+    Parámetros de Sale Terms
+  </a>
 {# ======================= BARRA DE FILTROS COMPARTIDOS ======================= #}
 <form id="sharedFiltersForm" method="get" action="{{ url_for('sync_celesa_bp.index') }}" class="mb-3">
   <input type="hidden" name="page" value="1">
