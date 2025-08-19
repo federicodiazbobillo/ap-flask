@@ -5,9 +5,10 @@
 <div class="container-fluid">
   <div class="d-flex align-items-center justify-content-between mb-3">
     <h3 class="mb-0">Parámetros de Venta (Celesa)</h3>
-    <div class="d-flex gap-2">
-      <a href="{{ url_for('sync_celesa_bp.index') }}" class="btn btn-light">← Volver a Sync</a>
-      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCreate">+ Agregar regla</button>
+    <div class="d-flex">
+      <a href="{{ url_for('sync_celesa_bp.index') }}" class="btn btn-light mr-2">← Volver a Sync</a>
+      <!-- BS4: abrimos con data-toggle/data-target -->
+      <button class="btn btn-primary" data-toggle="modal" data-target="#modalCreate">+ Agregar regla</button>
     </div>
   </div>
 
@@ -16,7 +17,9 @@
       {% for category, msg in messages %}
         <div class="alert alert-{{category}} alert-dismissible fade show" role="alert">
           {{ msg }}
-          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
         </div>
       {% endfor %}
     {% endif %}
@@ -26,13 +29,13 @@
     <div class="card-body p-0">
       <div class="table-responsive">
         <table class="table table-hover align-middle mb-0">
-          <thead class="table-light">
+          <thead class="thead-light">
             <tr>
               <th>Proveedor</th>
               <th>Hasta (max_stock)</th>
               <th>Acción</th>
               <th>Días de entrega</th>
-              <th class="text-end">Acciones</th>
+              <th class="text-right">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -41,13 +44,13 @@
               <td>{{ r.provider }}</td>
               <td>{{ r.max_stock }}</td>
               <td>
-                <span class="badge bg-{% if r.action=='publicar' %}success{% else %}secondary{% endif %}">{{ r.action }}</span>
+                <span class="badge badge-{% if r.action=='publicar' %}success{% else %}secondary{% endif %}">{{ r.action }}</span>
               </td>
               <td>{{ r.delivery_days }}</td>
-              <td class="text-end">
-                <button class="btn btn-sm btn-outline-primary" onclick="openEdit({{ r.id }})">Editar</button>
+              <td class="text-right">
+                <button class="btn btn-sm btn-outline-primary" type="button" onclick="openEdit({{ r.id }})">Editar</button>
                 <form action="{{ url_for('sync_celesa_bp.sale_terms_delete', row_id=r.id) }}" method="post" class="d-inline" onsubmit="return confirm('¿Eliminar esta regla?');">
-                  <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+                  <button class="btn btn-sm btn-outline-danger" type="submit">Eliminar</button>
                 </form>
               </td>
             </tr>
@@ -61,77 +64,81 @@
   </div>
 </div>
 
-<!-- Modal: Crear -->
-<div class="modal fade" id="modalCreate" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
+<!-- Modal: Crear (BS4) -->
+<div class="modal fade" id="modalCreate" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
     <form class="modal-content" method="post" action="{{ url_for('sync_celesa_bp.sale_terms_create') }}">
       <div class="modal-header">
         <h5 class="modal-title">Agregar regla</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
       </div>
       <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Proveedor</label>
+        <div class="form-group">
+          <label>Proveedor</label>
           <input name="provider" class="form-control" value="celesa" required>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Hasta (max_stock)</label>
+        <div class="form-group">
+          <label>Hasta (max_stock)</label>
           <input name="max_stock" type="number" min="0" step="1" class="form-control" required>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Acción</label>
-          <select name="action" class="form-select" required>
+        <div class="form-group">
+          <label>Acción</label>
+          <select name="action" class="form-control" required>
             {% for a in allowed_actions %}
               <option value="{{ a }}">{{ a }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Días de entrega (>= 15)</label>
+        <div class="form-group">
+          <label>Días de entrega (>= 15)</label>
           <input name="delivery_days" type="number" min="15" step="1" class="form-control" required>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancelar</button>
         <button class="btn btn-primary" type="submit">Guardar</button>
       </div>
     </form>
   </div>
 </div>
 
-<!-- Modal: Editar -->
-<div class="modal fade" id="modalEdit" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
+<!-- Modal: Editar (BS4) -->
+<div class="modal fade" id="modalEdit" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
     <form id="formEdit" class="modal-content" method="post">
       <div class="modal-header">
         <h5 class="modal-title">Editar regla</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
       </div>
       <div class="modal-body">
-        <input type="hidden" id="edit_id">
-        <div class="mb-3">
-          <label class="form-label">Proveedor</label>
+        <input type="hidden" id="edit_id" name="id">
+        <div class="form-group">
+          <label>Proveedor</label>
           <input id="edit_provider" name="provider" class="form-control" required>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Hasta (max_stock)</label>
+        <div class="form-group">
+          <label>Hasta (max_stock)</label>
           <input id="edit_max_stock" name="max_stock" type="number" min="0" step="1" class="form-control" required>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Acción</label>
-          <select id="edit_action" name="action" class="form-select" required>
+        <div class="form-group">
+          <label>Acción</label>
+          <select id="edit_action" name="action" class="form-control" required>
             {% for a in allowed_actions %}
               <option value="{{ a }}">{{ a }}</option>
             {% endfor %}
           </select>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Días de entrega (>= 15)</label>
+        <div class="form-group">
+          <label>Días de entrega (>= 15)</label>
           <input id="edit_delivery_days" name="delivery_days" type="number" min="15" step="1" class="form-control" required>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-secondary" type="button" data-dismiss="modal">Cancelar</button>
         <button class="btn btn-primary" type="submit">Guardar cambios</button>
       </div>
     </form>
@@ -139,41 +146,33 @@
 </div>
 
 <script>
-// URLs base generadas por Jinja (como cadenas planas)
+// URLs base generadas por Jinja
 var urlGetTemplate = "{{ url_for('sync_celesa_bp.sale_terms_get', row_id=0) }}";
 var urlUpdateTemplate = "{{ url_for('sync_celesa_bp.sale_terms_update', row_id=0) }}";
 
-async function openEdit(id) {
-  // Construir URLs sin usar backticks
-  var getUrl = urlGetTemplate.replace("0", String(id));
-  var updateUrl = urlUpdateTemplate.replace("0", String(id));
+// Abre modal de edición y completa campos (BS4)
+function openEdit(id) {
+  var getUrl = urlGetTemplate.replace(/0$/, String(id));
+  var updateUrl = urlUpdateTemplate.replace(/0$/, String(id));
 
-  try {
-    var res = await fetch(getUrl);
-    if (!res.ok) {
-      alert("No se pudo cargar la regla");
-      return;
-    }
-    var data = await res.json();
-
-    // Completar campos
-    document.getElementById("edit_id").value = data.id;
-    document.getElementById("edit_provider").value = data.provider;
-    document.getElementById("edit_max_stock").value = data.max_stock;
-    document.getElementById("edit_action").value = data.action;
-    document.getElementById("edit_delivery_days").value = data.delivery_days;
-
-    // Setear action del form
-    var form = document.getElementById("formEdit");
-    form.action = updateUrl;
-
-    // Abrir modal
-    var modal = new bootstrap.Modal(document.getElementById("modalEdit"));
-    modal.show();
-  } catch (e) {
-    console.error(e);
-    alert("Ocurrió un error al cargar la regla.");
-  }
+  fetch(getUrl, { cache: 'no-store' })
+    .then(function(res) {
+      if (!res.ok) throw new Error('bad response');
+      return res.json();
+    })
+    .then(function(data) {
+      $('#edit_id').val(data.id);
+      $('#edit_provider').val(data.provider);
+      $('#edit_max_stock').val(data.max_stock);
+      $('#edit_action').val(data.action);
+      $('#edit_delivery_days').val(data.delivery_days);
+      $('#formEdit').attr('action', updateUrl);
+      $('#modalEdit').modal('show');
+    })
+    .catch(function(err) {
+      console.error(err);
+      alert('No se pudo cargar la regla');
+    });
 }
 </script>
 {% endblock %}
