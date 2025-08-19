@@ -1,29 +1,31 @@
 # app/controllers/items/mercadolibre/sync_celesa/api_ops.py
 import time
+from typing import Optional, Tuple, Dict, Any
+
 import requests
 from flask import request, jsonify
 
-# Blueprint helper (no exponer global)
+# Traer el blueprint sin exponerlo globalmente
 def _bp():
     from .index import sync_celesa_bp
     return sync_celesa_bp
 
-# DB
-from app.db import get_conn
-
-# Reglas de sale_terms
-from .parametros_sale_terms_celesa import get_sale_term_for_stock
-
-# Token (opcional)
+# Token (opcional) del sistema
 try:
     # verificar_meli() -> (access_token, user_id, error)
     from app.integrations.mercadolibre.services.token_service import verificar_meli
 except Exception:
     verificar_meli = None
 
+# DB
+from app.db import get_conn
 
-# -------------------- Helpers HTTP ML --------------------
-def _prefer_token_header():
+# Regla de sale terms por stock
+from .parametros_sale_terms_celesa import get_sale_term_for_stock
+
+
+# -------------------- Helpers token / headers --------------------
+def _prefer_token_header() -> Dict[str, str]:
     """Devuelve Authorization Bearer si hay token válido; si no, {}."""
     if not verificar_meli:
         return {}
@@ -35,21 +37,45 @@ def _prefer_token_header():
     except Exception:
         return {}
 
-def _ml_get_item(idml, timeout=15):
+
+def _check_token_valid() -> Tuple[bool, Optional[Dict[str, Any]], Optional[int]]:
+    """
+    Llama a /users/me con el Bearer actual.
+    - (True, user_json, 200) si ok
+    - (False, {"error":...}, status) si inválido o falla
+    """
+    headers = _prefer_token_header()
+    if not headers:
+        return False, {"error": "token_missing"}, 401
+    try:
+        r = requests.get("https://api.mercadolibre.com/users/me", headers=headers, timeout=10)
+        if r.status_code == 200:
+            return True, r.json(), 200
+        # 401/403/expired/etc
+        return False, {"error": "token_invalid", "status": r.status_code}, r.status_code
+    except Exception as e:
+        return False, {"error": f"token_check_failed: {type(e).__name__}"}, 0
+
+
+# -------------------- Helpers ML --------------------
+def _ml_get_item(idml: str, timeout: int = 15) -> Tuple[Optional[Dict], int]:
+    """GET /items/{id} con Bearer (reintenta sin header si 401/403)."""
     url = f"https://api.mercadolibre.com/items/{idml}"
     headers = _prefer_token_header()
     try:
         r = requests.get(url, headers=headers, timeout=timeout)
         if r.status_code in (401, 403) and headers:
-            # reintento sin token por si aplica (sólo GET)
+            # Reintento sin header por si aplica
             r = requests.get(url, timeout=timeout)
         if r.status_code == 200:
             return r.json(), 200
         return None, r.status_code
     except Exception:
-        return None, 0  # error de red/timeout
+        return None, 0  # error de red
 
-def _ml_get_item_backoff(idml, max_retries=5):
+
+def _ml_get_item_backoff(idml: str, max_retries: int = 5) -> Tuple[Optional[Dict], int]:
+    """Backoff simple para 429/50x."""
     tries = 0
     while True:
         js, code = _ml_get_item(idml)
@@ -59,145 +85,189 @@ def _ml_get_item_backoff(idml, max_retries=5):
             continue
         return js, code
 
-def _safe_json_text(resp):
-    try:
-        return resp.json()
-    except Exception:
-        try:
-            return resp.text
-        except Exception:
-            return None
 
-def _ml_put_item(idml, payload, timeout=25):
-    """Devuelve (status_code, detail) donde detail es json o texto de ML (si hay)."""
-    url = f"https://api.mercadolibre.com/items/{idml}"
-    headers = {"Content-Type": "application/json", **_prefer_token_header()}
-    try:
-        r = requests.put(url, headers=headers, json=payload, timeout=timeout)
-        detail = _safe_json_text(r)
-        # Para PUT, sin token no sirve, pero si tu app tuviese permisos anónimos (raro) podrías reintentar:
-        if r.status_code in (401, 403) and "Authorization" in headers:
-            r2 = requests.put(url, headers={"Content-Type": "application/json"}, json=payload, timeout=timeout)
-            return r2.status_code, _safe_json_text(r2)
-        return r.status_code, detail
-    except Exception as e:
-        return 0, f"{type(e).__name__}: {e}"
+# -------------------- Helpers negocio --------------------
+def _is_full(item_json: Dict) -> bool:
+    """Detecta FULL por shipping.logistic_type == 'fulfillment'."""
+    shipping = (item_json or {}).get("shipping") or {}
+    return (shipping.get("logistic_type") or "").lower() == "fulfillment"
 
 
-# -------------------- Helpers de negocio --------------------
-def _get_stock_celesa(idml: str) -> int:
-    """Lee stock_celesa desde items_meli. Si falta, 0."""
+def _status_allows_update(status: Optional[str]) -> bool:
+    """Sólo se permite actualizar si el estado es active o paused."""
+    return (status or "").lower() in ("active", "paused")
+
+
+def _get_stock_celesa(idml: str) -> Optional[int]:
+    """Lee stock_celesa desde items_meli. Devuelve int o None si no hay dato."""
     conn = get_conn()
     cur = conn.cursor()
     try:
         cur.execute("SELECT stock_celesa FROM items_meli WHERE idml=%s", (idml,))
         row = cur.fetchone()
         if not row or row[0] is None:
-            return 0
-        try:
-            return int(row[0])
-        except Exception:
-            return 0
+            return None
+        return int(row[0])
+    except Exception:
+        return None
     finally:
-        try: cur.close()
-        except Exception: pass
-        try: conn.close()
-        except Exception: pass
+        try:
+            cur.close()
+        except Exception:
+            pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
-def _is_full_item(js: dict) -> bool:
-    """Detecta si la publicación es FULL."""
-    shipping = (js or {}).get("shipping") or {}
-    logistic = (shipping.get("logistic_type") or "").lower()
-    if logistic == "fulfillment":
-        return True
-    # fallback: algunos payloads incluyen tag "fulfillment"
-    tags = js.get("tags") or []
-    return any((str(t).lower() == "fulfillment") for t in tags)
 
 def _build_sale_terms_for(stock: int) -> list:
-    """Arma sale_terms según reglas y stock."""
-    if stock <= 0:
-        manuf_days = 35  # explícito para stock 0
-    else:
-        rule = get_sale_term_for_stock(stock, provider='celesa') or {}
-        try:
-            manuf_days = int(rule.get("delivery_days") or 15)
-        except Exception:
-            manuf_days = 15
+    """
+    Arma sale_terms según tabla sale_terms_celesa. Si no hay regla:
+      - si stock == 0 => 35
+      - si stock  > 0 => 20
+    """
+    rule = get_sale_term_for_stock(stock, provider='celesa') or {}
+    dias = None
+    try:
+        dias = int(rule.get("delivery_days"))
+    except Exception:
+        pass
+
+    if dias is None:
+        dias = 35 if (stock or 0) == 0 else 20
+
     return [
-        {"id": "MANUFACTURING_TIME", "value_name": f"{manuf_days} días"},
+        {"id": "MANUFACTURING_TIME", "value_name": f"{dias} días"},
         {"id": "WARRANTY_TIME", "value_name": "90 días"},
         {"id": "WARRANTY_TYPE", "value_id": "2230279"},
     ]
 
-def _build_put_payload(stock: int) -> dict:
-    """Payload final para PUT."""
-    status = "active" if stock > 0 else "paused"
+
+def _build_put_payload(stock: int) -> Dict[str, Any]:
+    """Payload exacto acordado."""
+    status = "active" if (stock or 0) > 0 else "paused"
     return {
         "available_quantity": int(stock),
         "status": status,
-        "sale_terms": _build_sale_terms_for(stock),
+        "sale_terms": _build_sale_terms_for(int(stock)),
     }
 
 
-# -------------------- API: PUT por publicación (con GET y validaciones) --------------------
+# -------------------- API: bulk_put (1x1) --------------------
 @_bp().route('/bulk-put', methods=['POST'], endpoint='bulk_put')
 def bulk_put():
     """
-    Body esperado:
-      { "ids": ["MLA123456"] }   # el front manda 1 por request
+    Espera JSON:
+      - { "id": "MLA123" }  (preferido)
+      - o { "ids": ["MLA123"] } (compat)
+      - opcional: { "emulate": true } para no hacer PUT real
 
-    Flujo por idml:
-      1) GET /items/{idml}    -> si != 200 => "GET:{code}"
-      2) Si FULL              -> "full"
-      3) Si status !in {active,paused} -> "<status>"
-      4) payload (stock + sale_terms) desde DB y reglas
-      5) sleep(2) y PUT       -> devolver código del PUT
+    Flujo:
+      1) Verifica token con /users/me → si falla: 401 {"error":"token_invalid"}
+      2) GET /items/{id}
+         - !=200 → {"id":..., "result": "GET:<code>"}
+      3) Si FULL → {"id":..., "result": "full"}
+      4) Si status no es active/paused → {"id":..., "result": "<status>"}
+      5) Lee stock_celesa → si None → {"id":..., "result": "NO_STOCK"}
+      6) Arma payload y hace PUT (o emula con sleep)
+         → {"id":..., "result": <http_code>}
+    """
+    data = request.get_json(silent=True) or {}
+
+    # Resolver ID (id o ids[0])
+    idml = (data.get("id") or "").strip()
+    if not idml:
+        ids = data.get("ids") or []
+        if isinstance(ids, list) and ids:
+            try:
+                idml = str(ids[0]).strip()
+            except Exception:
+                idml = ""
+    if not idml:
+        return jsonify({"error": "id_required"}), 400
+
+    emulate = bool(data.get("emulate", False))
+
+    # 1) Check token una vez por request
+    ok_token, token_info, token_status = _check_token_valid()
+    if not ok_token:
+        # Responder 401/403/etc para que el front muestre "401" (en lugar de 500)
+        return jsonify(token_info or {"error": "token_invalid"}), (token_status or 401)
+
+    # 2) GET del ítem
+    js, code = _ml_get_item_backoff(idml)
+    if code != 200:
+        return jsonify({"id": idml, "result": f"GET:{code}"}), 200
+
+    # 3) FULL
+    if _is_full(js or {}):
+        return jsonify({"id": idml, "result": "full"}), 200
+
+    # 4) Estado permitido para actualizar
+    api_status = (js or {}).get("status")
+    if not _status_allows_update(api_status):
+        return jsonify({"id": idml, "result": str(api_status or "UNKNOWN")}), 200
+
+    # 5) Stock Celesa desde DB (sin default a 0)
+    stock = _get_stock_celesa(idml)
+    if stock is None:
+        return jsonify({"id": idml, "result": "NO_STOCK"}), 200
+    try:
+        stock = max(0, int(stock))
+    except Exception:
+        return jsonify({"id": idml, "result": "BAD_STOCK"}), 200
+
+    # 6) Armar payload y PUT (o emular)
+    payload = _build_put_payload(stock)
+
+    if emulate:
+        # Emulación de 2s y "200"
+        time.sleep(2)
+        return jsonify({"id": idml, "result": 200}), 200
+
+    # PUT real
+    try:
+        url = f"https://api.mercadolibre.com/items/{idml}"
+        headers = {"Content-Type": "application/json", **_prefer_token_header()}
+        r = requests.put(url, headers=headers, json=payload, timeout=20)
+        return jsonify({"id": idml, "result": r.status_code}), 200
+    except Exception:
+        # Error de red / timeout
+        return jsonify({"id": idml, "result": 0}), 200
+
+
+# -------------------- (opc) Chequeo múltiple GET, si lo querés usar) --------------------
+@_bp().route('/api/items/check', methods=['POST'], endpoint='check_items')
+def check_items():
+    """
+    Body: { "ids": ["MLA1","MLA2"] }
+    Resp: { "results": { "MLA1": {"code":200,"data":{...}}, "MLA2": {"code":404} } }
     """
     data = request.get_json(silent=True) or {}
     ids = [str(x).strip() for x in (data.get('ids') or []) if str(x).strip()]
     if not ids:
         return jsonify({"error": "ids_required"}), 400
 
-    results = {}
-    debug = {}
+    # Verificar token primero (coherente con bulk_put)
+    ok_token, token_info, token_status = _check_token_valid()
+    if not ok_token:
+        return jsonify(token_info or {"error": "token_invalid"}), (token_status or 401)
 
+    out = {}
     for idml in ids:
-        try:
-            # 1) GET
-            item_js, get_code = _ml_get_item_backoff(idml)
-            if get_code != 200:
-                results[idml] = f"GET:{get_code}"
-                debug[idml] = {"step": "GET", "code": get_code}
-                continue
+        js, code = _ml_get_item_backoff(idml)
+        if code == 200:
+            shipping = (js or {}).get('shipping') or {}
+            out[idml] = {
+                "code": 200,
+                "data": {
+                    "status": js.get("status"),
+                    "shipping_logistic_type": shipping.get("logistic_type"),
+                    "available_quantity": js.get("available_quantity"),
+                }
+            }
+        else:
+            out[idml] = {"code": code, "data": None}
 
-            # 2) FULL?
-            if _is_full_item(item_js or {}):
-                results[idml] = "full"
-                debug[idml] = {"step": "SKIP", "reason": "full"}
-                continue
-
-            # 3) status permitido?
-            curr_status = (item_js or {}).get("status") or ""
-            if curr_status not in ("active", "paused"):
-                results[idml] = str(curr_status or "unknown_status")
-                debug[idml] = {"step": "SKIP", "reason": "status_not_updatable", "status": curr_status}
-                continue
-
-            # 4) stock + sale_terms
-            stock = _get_stock_celesa(idml)
-            payload = _build_put_payload(stock)
-
-            # 5) PUT (con sleep para que el slider se vea)
-            time.sleep(2)
-            put_code, put_detail = _ml_put_item(idml, payload)
-            results[idml] = put_code
-            debug[idml] = {"step": "PUT", "code": put_code, "payload": payload, "detail": put_detail}
-
-        except Exception as e:
-            # pase lo que pase, no rompemos todo el endpoint
-            results[idml] = "ERR"
-            debug[idml] = {"step": "EXC", "error": f"{type(e).__name__}: {e}"}
-
-    # results es lo que usa tu UI; debug te ayuda a ver el motivo real si no es 200
-    return jsonify({"results": results, "debug": debug}), 200
+    return jsonify({"results": out}), 200
