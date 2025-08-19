@@ -876,10 +876,3 @@ def _run_job_verify(job_id):
         job["finished_at"] = time.time()
 
 
-#----------------------- Boton de bulk ---------------------------
-@_bp().route('/bulk-put', methods=['POST'], endpoint='bulk_put')
-def bulk_put_stub():
-    data = request.get_json(silent=True) or {}
-    ids = [str(x) for x in (data.get('ids') or [])]
-    time.sleep(1)  # emula el PUT
-    return jsonify({"results": {i: 200 for i in ids}}), 200

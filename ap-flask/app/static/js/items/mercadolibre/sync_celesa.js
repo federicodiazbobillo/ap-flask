@@ -202,7 +202,7 @@
     if (isGlobalSelected()) return all;      // UI muestra progreso en visibles
     return all.filter(c => c.checked);
   }
-  
+
     function putRowInProgress(chk) {
     const td = chk.closest('td');
     if (!td) return;
@@ -241,75 +241,66 @@
     if (btnPutStock)   btnPutStock.disabled   = !on;
   }
 
-  async function runPutOverSelection(btn) {
-    const targets = pageTargets();
-    if (!targets.length) {
-      alert('Seleccioná al menos una fila o tildá “TODOS los resultados”.');
-      return;
-    }
+async function runPutOverSelection(btn) {
+  const targets = pageTargets();
+  if (!targets.length) {
+    alert('Seleccioná al menos una fila o tildá “TODOS los resultados”.');
+    return;
+  }
 
-    // Deshabilitar botón durante el proceso
-    const oldHTML = btn.innerHTML;
-    btn.innerHTML = 'Procesando…';
-    btn.disabled = true;
+  const oldHTML = btn.innerHTML;
+  btn.innerHTML = 'Procesando…';
+  btn.disabled = true;
 
-    try {
-      // Prepara IDs (de las visibles / seleccionadas)
-      const ids = [];
-      for (const chk of targets) {
-        if (chk.value) ids.push(String(chk.value));
-      }
+  try {
+    const putUrl = btn.dataset.putUrl;
 
-      // Poner todas las filas en "Actualizando…"
-      targets.forEach(putRowInProgress);
+    for (const chk of targets) {
+      // 1) Poner la fila en “Actualizando…”
+      putRowInProgress(chk);
 
-      // Si hay endpoint, lo usamos; si no, emulamos local
-      const putUrl = btn.dataset.putUrl;
-      let results = null;
+      // 2) Emular tiempo de proceso
+      await sleep(2000);
+
+      // 3) Enviar SOLO este id
+      let code = 'ERR';
+      const idml = String(chk.value || chk.dataset.idml || '').trim();
 
       if (putUrl) {
-        // Enviamos también flags por si luego el backend quiere procesar TODO el filtro
-        const payload = {
-          ids,
-          process_all: isGlobalSelected(),
-          filters: getFiltersPayload()
-        };
-        // Emulación de tiempo de proceso
-        await sleep(2000);
-        const r = await fetch(putUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        const js = await r.json().catch(() => ({}));
-        if (!r.ok) {
-          // Si el server devolvió error, marcamos todas las filas como error con el status HTTP
-          results = Object.fromEntries(ids.map(i => [i, r.status || 500]));
-        } else {
-          results = (js && js.results) ? js.results : Object.fromEntries(ids.map(i => [i, 200]));
+        try {
+          const payload = { ids: [idml] }; // 1×1
+          const r = await fetch(putUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (!r.ok) {
+            code = r.status || 500;              // error HTTP
+          } else {
+            const js = await r.json().catch(() => ({}));
+            code = (js && js.results && js.results[idml] != null)
+              ? js.results[idml]
+              : 200;                              // por defecto OK si vuelve vacío
+          }
+        } catch (e) {
+          code = 'ERR';
         }
       } else {
-        // Modo emulación local (2s + 200)
-        await sleep(2000);
-        results = Object.fromEntries(ids.map(i => [i, 200]));
+        // Sin endpoint => emulación local
+        code = 200;
       }
 
-      // Pintar resultados
-      for (const chk of targets) {
-        const id = String(chk.value || chk.dataset.idml || '');
-        const code = (id && results && (id in results)) ? results[id] : 'ERR';
-        putRowResult(chk, code);
-      }
-
-    } catch (e) {
-      alert('Error: ' + (e?.message || String(e)));
-      // En caso de error global, marcamos visibles como error
-      pageTargets().forEach(chk => putRowResult(chk, 'ERR'));
-    } finally {
-      btn.innerHTML = oldHTML;
-      btn.disabled = false;
+      // 4) Pintar resultado SOLO de esta fila
+      putRowResult(chk, code);
     }
+
+  } finally {
+    btn.innerHTML = oldHTML;
+    btn.disabled = false;
   }
+}
+
 
   // ---------- Init ----------
   document.addEventListener('DOMContentLoaded', () => {

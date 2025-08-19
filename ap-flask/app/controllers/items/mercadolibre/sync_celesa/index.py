@@ -73,3 +73,4 @@ def build_where_for_list(statuses_only, include_null, isbn_ok, stock_filter):
 from . import condiciones_generales  # noqa: E402,F401
 from . import manejo_de_stock        # noqa: E402,F401
 from . import parametros_sale_terms_celesa  # <<< añade este import
+from . import api_ops  # noqa: E402,F401
