@@ -6,13 +6,7 @@
 <a href="{{ url_for('sync_celesa_bp.sale_terms_index') }}" class="btn btn-primary btn-sm">
   Parámetros de Sale Terms
 </a>
-<button id="btn_put_general"
-        type="button"
-        class="btn btn-success btn-sm ml-2"
-        data-put-url="{{ url_for('sync_celesa_bp.bulk_put') }}"
-        disabled>
-  Actualizar en ML (PUT)
-</button>
+
 {# ======================= BARRA DE FILTROS COMPARTIDOS ======================= #}
 <form id="sharedFiltersForm" method="get" action="{{ url_for('sync_celesa_bp.index') }}" class="mb-3">
   <input type="hidden" name="page" value="1">
@@ -305,7 +299,16 @@
         </small>
       </div>
     </div>
-
+    <!-- ⬇️ Botón PUT para la pestaña General -->
+    <div class="mb-2">
+      <button id="btn_put_general"
+              type="button"
+              class="btn btn-success btn-sm"
+              data-put-url="{{ url_for('sync_celesa_bp.bulk_put') }}"
+              disabled>
+        Actualizar en ML (PUT)
+      </button>
+    </div>
     <p class="text-muted mb-2">
       Mostrando {{ start }}–{{ end }} de {{ total }} registros • {{ page_size }} por página
       {% if stock_filter == 'celesa_zero_ml_positive' %}

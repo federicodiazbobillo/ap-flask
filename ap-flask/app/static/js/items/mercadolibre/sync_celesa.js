@@ -1,8 +1,9 @@
 // static/js/items/mercadolibre/sync_celesa.js
 (function () {
   // ---------- Utils ----------
-  function qs(sel, ctx) { return (ctx || document).querySelector(sel); }
-  function qsa(sel, ctx) { return Array.from((ctx || document).querySelectorAll(sel)); }
+  const qs  = (s, c) => (c || document).querySelector(s);
+  const qsa = (s, c) => Array.from((c || document).querySelectorAll(s));
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
   // Mantener ?tab= en la URL al cambiar de pestaña
   function setURLParam(key, val) {
@@ -36,24 +37,25 @@
       head.addEventListener('change', () => {
         rows().forEach(c => { c.checked = head.checked; });
         syncHeader();
+        updatePutButtonsEnabled();
       });
     }
 
-    // enlaza los checkboxes de fila (si no estaban enlazados)
     rows().forEach(c => {
       if (!c.__wired) {
         c.__wired = true;
-        c.addEventListener('change', syncHeader);
+        c.addEventListener('change', () => {
+          syncHeader();
+          updatePutButtonsEnabled();
+        });
       }
     });
 
-    // estado inicial
     syncHeader();
   }
 
   // ---------- Selección global (todos los resultados filtrados) ----------
   function setGlobalMode(on) {
-    // Deshabilita los controles de selección por página cuando está activo el global
     qsa('#check_all_page_general, #check_all_page_stock, .row-check').forEach(el => {
       el.disabled = on;
     });
@@ -61,10 +63,10 @@
     const hint = qs('#sel_hint');
     if (btn) btn.disabled = !on;
     if (hint) hint.style.display = on ? '' : 'none';
+    updatePutButtonsEnabled();
   }
 
   // ---------- Jobs (modal) ----------
-  // Si necesitás la parte de jobs, mantenemos el código mínimo sin jQuery.
   const job = {
     modalEl: null, counts: null, lastIdml: null, lastCode: null, bar: null, alert: null, closeBtn: null,
     statusTemplate: null, intId: null
@@ -90,12 +92,10 @@
     job.lastCode.textContent = '-';
     job.closeBtn.setAttribute('disabled', 'disabled');
 
-    // Bootstrap 4 requiere jQuery para los modales. Como alternativa simple:
     job.modalEl.classList.add('show');
     job.modalEl.style.display = 'block';
     job.modalEl.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
-    // backdrop básico
     if (!qs('.modal-backdrop')) {
       const bd = document.createElement('div');
       bd.className = 'modal-backdrop fade show';
@@ -114,6 +114,7 @@
     job.alert.textContent = msg || 'Error desconocido.';
     job.alert.classList.remove('d-none');
     job.closeBtn.removeAttribute('disabled');
+    job.closeBtn.addEventListener('click', closeJobModal, { once: true });
   }
   function pollJob(jobId) {
     if (!job.statusTemplate) return;
@@ -185,9 +186,124 @@
     return payload;
   }
 
+  // ---------- PUT por selección ----------
+  function currentScope() {
+    const active = document.querySelector('#syncTabs .nav-link.active[data-tab-target]');
+    const tab = active ? active.getAttribute('data-tab-target') : (qs('#activeTab')?.value || 'general');
+    return (tab === 'stock') ? 'stock' : 'general';
+  }
+  function isGlobalSelected() {
+    const g = qs('#check_all_results');
+    return !!(g && g.checked);
+  }
+  function pageTargets() {
+    const scope = currentScope();
+    const all = qsa('.row-check-' + scope);
+    if (isGlobalSelected()) return all;      // UI muestra progreso en visibles
+    return all.filter(c => c.checked);
+  }
+  function putRowInProgress(chk) {
+    const td = chk.closest('td');
+    if (!td) return;
+    const id = (chk.value || chk.dataset.idml || '').replace(/[^A-Za-z0-9_-]/g, '_');
+    td.dataset.prev = td.innerHTML;
+    td.innerHTML =
+      `<div class="custom-control custom-switch" style="transform:scale(.9); white-space:nowrap;">
+         <input type="checkbox" class="custom-control-input" id="sw_${id}" checked disabled>
+         <label class="custom-control-label" for="sw_${id}">Actualizando…</label>
+       </div>`;
+  }
+  function putRowResult(chk, code) {
+    const td = chk.closest('td');
+    if (!td) return;
+    // Regla: 200 = OK (verde). Cualquier otro => error (rojo).
+    const cls = (code === 200) ? 'success' : 'danger';
+    td.innerHTML = `<span class="badge badge-${cls}">${String(code)}</span>`;
+  }
+  function updatePutButtonsEnabled() {
+    const btnPutGeneral = qs('#btn_put_general');
+    const btnPutStock   = qs('#btn_put_stock');
+    const scope = currentScope();
+    const inPage = qsa('.row-check-' + scope);
+    const anyChecked = inPage.some(c => c.checked);
+    const on = isGlobalSelected() || anyChecked;
+    if (btnPutGeneral) btnPutGeneral.disabled = !on;
+    if (btnPutStock)   btnPutStock.disabled   = !on;
+  }
+
+  async function runPutOverSelection(btn) {
+    const targets = pageTargets();
+    if (!targets.length) {
+      alert('Seleccioná al menos una fila o tildá “TODOS los resultados”.');
+      return;
+    }
+
+    // Deshabilitar botón durante el proceso
+    const oldHTML = btn.innerHTML;
+    btn.innerHTML = 'Procesando…';
+    btn.disabled = true;
+
+    try {
+      // Prepara IDs (de las visibles / seleccionadas)
+      const ids = [];
+      for (const chk of targets) {
+        if (chk.value) ids.push(String(chk.value));
+      }
+
+      // Poner todas las filas en "Actualizando…"
+      targets.forEach(putRowInProgress);
+
+      // Si hay endpoint, lo usamos; si no, emulamos local
+      const putUrl = btn.dataset.putUrl;
+      let results = null;
+
+      if (putUrl) {
+        // Enviamos también flags por si luego el backend quiere procesar TODO el filtro
+        const payload = {
+          ids,
+          process_all: isGlobalSelected(),
+          filters: getFiltersPayload()
+        };
+        // Emulación de tiempo de proceso
+        await sleep(2000);
+        const r = await fetch(putUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const js = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          // Si el server devolvió error, marcamos todas las filas como error con el status HTTP
+          results = Object.fromEntries(ids.map(i => [i, r.status || 500]));
+        } else {
+          results = (js && js.results) ? js.results : Object.fromEntries(ids.map(i => [i, 200]));
+        }
+      } else {
+        // Modo emulación local (2s + 200)
+        await sleep(2000);
+        results = Object.fromEntries(ids.map(i => [i, 200]));
+      }
+
+      // Pintar resultados
+      for (const chk of targets) {
+        const id = String(chk.value || chk.dataset.idml || '');
+        const code = (id && results && (id in results)) ? results[id] : 'ERR';
+        putRowResult(chk, code);
+      }
+
+    } catch (e) {
+      alert('Error: ' + (e?.message || String(e)));
+      // En caso de error global, marcamos visibles como error
+      pageTargets().forEach(chk => putRowResult(chk, 'ERR'));
+    } finally {
+      btn.innerHTML = oldHTML;
+      btn.disabled = false;
+    }
+  }
+
   // ---------- Init ----------
   document.addEventListener('DOMContentLoaded', () => {
-    // Wire selección por página en ambas pestañas
+    // Wire selección por página
     wireScope('general');
     wireScope('stock');
 
@@ -203,15 +319,15 @@
       a.addEventListener('click', () => {
         const tab = a.getAttribute('data-tab-target') || 'general';
         setURLParam('tab', tab);
-        // re-evaluar encabezados al cambiar de pestaña
         setTimeout(() => {
           wireScope('general');
           wireScope('stock');
+          updatePutButtonsEnabled();
         }, 0);
       });
     });
 
-    // Botones de jobs (si los usás)
+    // Botones de jobs (si están)
     const btnNormalize = qs('#btnNormalizeApi');
     if (btnNormalize) {
       btnNormalize.addEventListener('click', () => {
@@ -235,121 +351,12 @@
       });
     }
 
-    // (Stock) — si tenés botones de stock async, podés agregarlos aquí igual que arriba
-  });
-})();
-
-
-// === PATCH: slider en fila mientras "PUTea" y luego muestra código ===
-(function () {
-  const qs  = (s, c) => (c || document).querySelector(s);
-  const qsa = (s, c) => Array.from((c || document).querySelectorAll(s));
-
-  // Helpers existentes a los que nos “enganchamos” si están, o fallback
-  function currentScope() {
-    const active = document.querySelector('#syncTabs .nav-link.active[data-tab-target]');
-    const tab = active ? active.getAttribute('data-tab-target') : (qs('#activeTab')?.value || 'general');
-    return (tab === 'stock') ? 'stock' : 'general';
-  }
-  function isGlobalSelected() {
-    const g = qs('#check_all_results');
-    return !!(g && g.checked);
-  }
-  function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
-
-  // Obtiene los checkboxes “target” según selección global o por página
-  function targetCheckboxes() {
-    const scope = currentScope();
-    const all = qsa('.row-check-' + scope);       // todos los de la página
-    if (isGlobalSelected()) return all;           // modo “TODOS los resultados”: mostramos progreso en los visibles
-    return all.filter(c => c.checked);            // solo los tildados
-  }
-
-  // Cambia la celda del checkbox por un slider “procesando…”
-  function putRowInProgress(chk) {
-    const td = chk.closest('td');
-    if (!td) return;
-    const id = (chk.value || chk.dataset.idml || '').replace(/[^A-Za-z0-9_-]/g, '_');
-    td.dataset.prev = td.innerHTML; // por si luego querés restaurar
-    td.innerHTML =
-      `<div class="custom-control custom-switch" style="transform:scale(.9); white-space:nowrap;">
-         <input type="checkbox" class="custom-control-input" id="sw_${id}" checked disabled>
-         <label class="custom-control-label" for="sw_${id}">Actualizando…</label>
-       </div>`;
-  }
-
-  // Reemplaza la celda por el código devuelto (badge)
-  function putRowResult(chk, code) {
-    const td = chk.closest('td');
-    if (!td) return;
-    let cls = 'secondary';
-    if (code === 200) cls = 'success';
-    else if (code === 404) cls = 'dark';
-    else if (code === 429) cls = 'warning';
-    else if (code >= 500) cls = 'danger';
-    td.innerHTML = `<span class="badge badge-${cls}">${code}</span>`;
-  }
-
-  async function runFakePutOverSelection(btn) {
-    const targets = targetCheckboxes();
-    if (!targets.length) {
-      alert('Seleccioná al menos una fila o tildá “TODOS los resultados”.');
-      return;
-    }
-
-    // Deshabilito botón durante el proceso
-    const oldHTML = btn.innerHTML;
-    btn.innerHTML = 'Procesando…';
-    btn.disabled = true;
-
-    try {
-      // Secuencial para que se note el efecto fila por fila
-      for (const chk of targets) {
-        putRowInProgress(chk);
-        // Emulación del PUT real
-        //await sleep(2000);                 // <<<< emula la actualización
-        const code = 200;                  // TODO: reemplazar por el código real devuelto por tu endpoint
-        putRowResult(chk, code);
-      }
-
-      // Si querés hacerlo real después:
-      // const resp = await fetch(btn.dataset.putUrl, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      // const js = await resp.json();
-      // y aplicás js.resultados[id] -> code por cada fila
-
-    } catch (e) {
-      alert('Error: ' + (e?.message || String(e)));
-    } finally {
-      btn.innerHTML = oldHTML;
-      btn.disabled = false;
-    }
-  }
-
-  // Wire de los botones PUT (si existen en el DOM)
-  document.addEventListener('DOMContentLoaded', () => {
+    // Botones PUT
     const btnPutGeneral = qs('#btn_put_general');
     const btnPutStock   = qs('#btn_put_stock');
+    if (btnPutGeneral) btnPutGeneral.addEventListener('click', () => runPutOverSelection(btnPutGeneral));
+    if (btnPutStock)   btnPutStock.addEventListener('click',   () => runPutOverSelection(btnPutStock));
 
-    function updateEnabled() {
-      const scope = currentScope();
-      const inPage = qsa('.row-check-' + scope);
-      const anyChecked = inPage.some(c => c.checked);
-      const on = isGlobalSelected() || anyChecked;
-      if (btnPutGeneral) btnPutGeneral.disabled = !on;
-      if (btnPutStock)   btnPutStock.disabled   = !on;
-    }
-
-    // Escuchamos cambios de selección para habilitar/deshabilitar
-    ['general','stock'].forEach(scope => {
-      qsa('.row-check-' + scope).forEach(c => c.addEventListener('change', updateEnabled));
-      const head = qs('#check_all_page_' + scope);
-      if (head) head.addEventListener('change', updateEnabled);
-    });
-    const global = qs('#check_all_results');
-    if (global) global.addEventListener('change', updateEnabled);
-    updateEnabled();
-
-    if (btnPutGeneral) btnPutGeneral.addEventListener('click', () => runFakePutOverSelection(btnPutGeneral));
-    if (btnPutStock)   btnPutStock.addEventListener('click',   () => runFakePutOverSelection(btnPutStock));
+    updatePutButtonsEnabled();
   });
 })();
