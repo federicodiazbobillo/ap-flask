@@ -121,27 +121,22 @@ def _get_stock_celesa(idml: str) -> Optional[int]:
             pass
 
 
-def _build_sale_terms_for(stock: int) -> list:
-    """
-    Arma sale_terms según tabla sale_terms_celesa. Si no hay regla:
-      - si stock == 0 => 35
-      - si stock  > 0 => 20
-    """
-    rule = get_sale_term_for_stock(stock, provider='celesa') or {}
-    dias = None
+def _build_sale_terms_for(stock: int):
+    # import perezoso para evitar ciclo de imports
     try:
-        dias = int(rule.get("delivery_days"))
+        from .parametros_sale_terms_celesa import get_sale_term_for_stock
+        rule = get_sale_term_for_stock(stock, provider='celesa') or {}
+        dias = int(rule.get('delivery_days') or 35) if stock == 0 else int(rule.get('delivery_days') or 15)
     except Exception:
-        pass
-
-    if dias is None:
-        dias = 35 if (stock or 0) == 0 else 20
+        # fallback seguro si algo falla al importar/consultar
+        dias = 35 if stock == 0 else 15
 
     return [
         {"id": "MANUFACTURING_TIME", "value_name": f"{dias} días"},
         {"id": "WARRANTY_TIME", "value_name": "90 días"},
         {"id": "WARRANTY_TYPE", "value_id": "2230279"},
     ]
+
 
 
 def _build_put_payload(stock: int) -> Dict[str, Any]:
