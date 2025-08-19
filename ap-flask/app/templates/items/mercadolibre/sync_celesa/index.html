@@ -1,11 +1,12 @@
-{# app/templates/items/mercadolibre/sync_celesa.html #}
+{# app/templates/items/mercadolibre/sync_celesa/index.html #}
 {% extends "base.html" %}
 {% block content %}
 
 <h3 class="mb-3">Sync Celesa</h3>
-  <a href="{{ url_for('sync_celesa_bp.sale_terms_index') }}" class="btn btn-primary btn-sm">
-    Parámetros de Sale Terms
-  </a>
+<a href="{{ url_for('sync_celesa_bp.sale_terms_index') }}" class="btn btn-primary btn-sm">
+  Parámetros de Sale Terms
+</a>
+
 {# ======================= BARRA DE FILTROS COMPARTIDOS ======================= #}
 <form id="sharedFiltersForm" method="get" action="{{ url_for('sync_celesa_bp.index') }}" class="mb-3">
   <input type="hidden" name="page" value="1">
@@ -121,7 +122,6 @@
         Verificar status (API)
       </button>
 
-      {# Propio de “generales” #}
       <a class="btn btn-info btn-sm ml-3"
          href="{{ url_for('sync_celesa_bp.index',
                           page=1, status=selected_statuses, isbn_ok=isbn_ok, analyze=1, tab='general') }}">
@@ -170,6 +170,7 @@
       {% endif %}
     </p>
 
+    {# --- Selección masiva (global) --- #}
     <div class="mb-3 d-flex flex-wrap align-items-center">
       <div class="form-check mr-3">
         <input class="form-check-input" type="checkbox" id="check_all_results">
@@ -189,6 +190,9 @@
       <table class="table table-sm table-bordered table-hover">
         <thead class="thead-light">
           <tr>
+            <th style="width:36px;">
+              <input type="checkbox" id="check_all_page_general" data-scope="general">
+            </th>
             <th style="white-space:nowrap;">IDML</th>
             <th>ISBN</th>
             <th>Status</th>
@@ -201,6 +205,15 @@
             {% for r in rows %}
               {% set _idml = r[0] %}
               <tr>
+                <td class="text-center align-middle">
+                  {% if _idml %}
+                    <input type="checkbox"
+                           class="row-check row-check-general"
+                           data-scope="general"
+                           data-idml="{{ _idml }}"
+                           value="{{ _idml }}">
+                  {% endif %}
+                </td>
                 <td class="text-monospace">
                   {% if _idml %}
                     <a class="idml-link"
@@ -218,7 +231,7 @@
               </tr>
             {% endfor %}
           {% else %}
-            <tr><td colspan="5" class="text-center text-muted">Sin resultados</td></tr>
+            <tr><td colspan="6" class="text-center text-muted">Sin resultados</td></tr>
           {% endif %}
         </tbody>
       </table>
@@ -261,6 +274,9 @@
              href="{{ url_for('sync_celesa_bp.index', page=1, tab='stock', status=selected_statuses, isbn_ok=isbn_ok, stock_filter='celesa_zero_ml_positive') }}">
             Celesa = 0 y ML ≥ 1
           </a>
+        </div>
+
+        <div class="btn-group ml-1" role="group" aria-label="Filtros de stock 2">
           <a class="btn btn-outline-primary btn-sm {% if stock_filter == 'celesa_positive_ml_zero' %}active{% endif %}"
              href="{{ url_for('sync_celesa_bp.index', page=1, tab='stock', status=selected_statuses, isbn_ok=isbn_ok, stock_filter='celesa_positive_ml_zero') }}">
             Celesa &gt; 0 y ML = 0
@@ -299,6 +315,9 @@
       <table class="table table-sm table-bordered table-hover">
         <thead class="thead-light">
           <tr>
+            <th style="width:36px;">
+              <input type="checkbox" id="check_all_page_stock" data-scope="stock">
+            </th>
             <th style="white-space:nowrap;">IDML</th>
             <th>ISBN</th>
             <th>Status</th>
@@ -311,6 +330,15 @@
             {% for r in rows %}
               {% set _idml = r[0] %}
               <tr>
+                <td class="text-center align-middle">
+                  {% if _idml %}
+                    <input type="checkbox"
+                           class="row-check row-check-stock"
+                           data-scope="stock"
+                           data-idml="{{ _idml }}"
+                           value="{{ _idml }}">
+                  {% endif %}
+                </td>
                 <td class="text-monospace">{{ _idml or '' }}</td>
                 <td class="text-monospace">{{ r[1] or '' }}</td>
                 <td>{{ r[2] or '' }}</td>
@@ -319,7 +347,7 @@
               </tr>
             {% endfor %}
           {% else %}
-            <tr><td colspan="5" class="text-center text-muted">Sin resultados</td></tr>
+            <tr><td colspan="6" class="text-center text-muted">Sin resultados</td></tr>
           {% endif %}
         </tbody>
       </table>
@@ -355,6 +383,7 @@
 <input type="hidden" id="filter_statuses" value="{{ (selected_statuses or []) | join(',') }}">
 <input type="hidden" id="filter_isbn_ok" value="{{ isbn_ok or '' }}">
 <input type="hidden" id="activeTab" value="{{ active_tab or 'general' }}">
+<input type="hidden" id="sel_total" value="{{ total }}"> {# usado por el hint del checkbox global #}
 
 <!-- Plantilla de URL para consultar estado del job -->
 <div id="jobConfig"
@@ -401,15 +430,11 @@
       var active = document.querySelector('#syncTabs .nav-link.active[data-tab-target]');
       return active ? active.getAttribute('data-tab-target') : (document.getElementById('activeTab')?.value || 'general');
     }
-
     function syncSharedTab() {
       if (sharedTabInput) sharedTabInput.value = currentTab();
     }
 
-    // 1) Al cargar, reflejar la pestaña actual en el hidden del form compartido
     syncSharedTab();
-
-    // 2) Al cambiar de pestaña, actualizar URL (?tab=...) y el hidden del form
     tabs.forEach(function (a) {
       a.addEventListener('shown.bs.tab', function (e) {
         var tab = e.target.getAttribute('data-tab-target') || 'general';
@@ -419,15 +444,12 @@
         syncSharedTab();
       });
     });
-
-    // 3) Justo antes de enviar filtros, volver a sincronizar (por si cambió la pestaña)
     if (sharedForm) {
-      sharedForm.addEventListener('submit', function () {
-        syncSharedTab();
-      });
+      sharedForm.addEventListener('submit', function () { syncSharedTab(); });
     }
   });
 </script>
 
-<script src="{{ url_for('static', filename='js/items/mercadolibre/sync_celesa.js', v=13) }}"></script>
+{# cache-busting: subí el número si actualizás el JS #}
+<script src="{{ url_for('static', filename='js/items/mercadolibre/sync_celesa.js', v=14) }}"></script>
 {% endblock %}
