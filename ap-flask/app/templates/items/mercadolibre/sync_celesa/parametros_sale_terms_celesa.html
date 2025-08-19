@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block title %}Parámetros de Venta - Celesa{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h3 class="mb-0">Parámetros de Venta (Celesa)</h3>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('sync_celesa_bp.index') }}" class="btn btn-light">← Volver a Sync</a>
+      <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalCreate">+ Agregar regla</button>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, msg in messages %}
+        <div class="alert alert-{{category}} alert-dismissible fade show" role="alert">
+          {{ msg }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <div class="card shadow-sm">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Proveedor</th>
+              <th>Hasta (max_stock)</th>
+              <th>Acción</th>
+              <th>Días de entrega</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td>{{ r.provider }}</td>
+              <td>{{ r.max_stock }}</td>
+              <td>
+                <span class="badge bg-{% if r.action=='publicar' %}success{% else %}secondary{% endif %}">{{ r.action }}</span>
+              </td>
+              <td>{{ r.delivery_days }}</td>
+              <td class="text-end">
+                <button class="btn btn-sm btn-outline-primary" onclick="openEdit({{ r.id }})">Editar</button>
+                <form action="{{ url_for('sync_celesa_bp.sale_terms_delete', row_id=r.id) }}" method="post" class="d-inline" onsubmit="return confirm('¿Eliminar esta regla?');">
+                  <button class="btn btn-sm btn-outline-danger">Eliminar</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Sin reglas cargadas.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Crear -->
+<div class="modal fade" id="modalCreate" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" method="post" action="{{ url_for('sync_celesa_bp.sale_terms_create') }}">
+      <div class="modal-header">
+        <h5 class="modal-title">Agregar regla</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Proveedor</label>
+          <input name="provider" class="form-control" value="celesa" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Hasta (max_stock)</label>
+          <input name="max_stock" type="number" min="0" step="1" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Acción</label>
+          <select name="action" class="form-select" required>
+            {% for a in allowed_actions %}
+              <option value="{{ a }}">{{ a }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Días de entrega (>= 15)</label>
+          <input name="delivery_days" type="number" min="15" step="1" class="form-control" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary" type="submit">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Editar -->
+<div class="modal fade" id="modalEdit" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form id="formEdit" class="modal-content" method="post">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar regla</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="edit_id">
+        <div class="mb-3">
+          <label class="form-label">Proveedor</label>
+          <input id="edit_provider" name="provider" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Hasta (max_stock)</label>
+          <input id="edit_max_stock" name="max_stock" type="number" min="0" step="1" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Acción</label>
+          <select id="edit_action" name="action" class="form-select" required>
+            {% for a in allowed_actions %}
+              <option value="{{ a }}">{{ a }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Días de entrega (>= 15)</label>
+          <input id="edit_delivery_days" name="delivery_days" type="number" min="15" step="1" class="form-control" required>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal" type="button">Cancelar</button>
+        <button class="btn btn-primary" type="submit">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// URLs base generadas por Jinja (como cadenas planas)
+var urlGetTemplate = "{{ url_for('sync_celesa_bp.sale_terms_get', row_id=0) }}";
+var urlUpdateTemplate = "{{ url_for('sync_celesa_bp.sale_terms_update', row_id=0) }}";
+
+async function openEdit(id) {
+  // Construir URLs sin usar backticks
+  var getUrl = urlGetTemplate.replace("0", String(id));
+  var updateUrl = urlUpdateTemplate.replace("0", String(id));
+
+  try {
+    var res = await fetch(getUrl);
+    if (!res.ok) {
+      alert("No se pudo cargar la regla");
+      return;
+    }
+    var data = await res.json();
+
+    // Completar campos
+    document.getElementById("edit_id").value = data.id;
+    document.getElementById("edit_provider").value = data.provider;
+    document.getElementById("edit_max_stock").value = data.max_stock;
+    document.getElementById("edit_action").value = data.action;
+    document.getElementById("edit_delivery_days").value = data.delivery_days;
+
+    // Setear action del form
+    var form = document.getElementById("formEdit");
+    form.action = updateUrl;
+
+    // Abrir modal
+    var modal = new bootstrap.Modal(document.getElementById("modalEdit"));
+    modal.show();
+  } catch (e) {
+    console.error(e);
+    alert("Ocurrió un error al cargar la regla.");
+  }
+}
+</script>
+{% endblock %}

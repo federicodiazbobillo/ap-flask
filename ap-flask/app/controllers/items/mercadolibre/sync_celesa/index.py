@@ -1,11 +1,12 @@
-# index.py — Único blueprint del módulo Sync Celesa
-from flask import Blueprint
+# app/controllers/items/mercadolibre/sync_celesa/index.py
+from flask import Blueprint, render_template
 
 # ===== ÚNICO blueprint =====
 sync_celesa_bp = Blueprint(
     "sync_celesa_bp",
     __name__,
-    template_folder="app/templates/items/mercadolibre",
+    url_prefix="/sync-celesa",   # << clave para /sync-celesa/...
+    # sin template_folder: usamos rutas absolutas desde /templates
 )
 
 # ===== Constantes / Estado compartido =====
@@ -18,6 +19,11 @@ ISBN_MAX = 9999999999999
 # Jobs en memoria (por proceso)
 JOBS = {}  # job_id -> dict
 
+# ===== Home de Sync Celesa =====
+@sync_celesa_bp.route("/", methods=["GET"])
+def index():
+    # templates/mercadolibre/sync_celesa/index.html
+    return render_template("mercadolibre/sync_celesa/index.html")
 
 # ===== Helper compartido: WHERE para el listado =====
 def build_where_for_list(statuses_only, include_null, isbn_ok, stock_filter):
@@ -48,19 +54,16 @@ def build_where_for_list(statuses_only, include_null, isbn_ok, stock_filter):
 
     # Filtros de stock (exclusivos)
     if stock_filter == 'celesa_zero_ml_positive':
-        # Celesa = 0 y ML ≥ 1
         clauses.append("(COALESCE(stock_celesa, 0) = 0 AND COALESCE(stock_idml, 0) >= 1)")
     elif stock_filter == 'celesa_positive_ml_zero':
-        # Celesa > 0 y ML = 0
         clauses.append("(COALESCE(stock_celesa, 0) > 0 AND COALESCE(stock_idml, 0) = 0)")
     elif stock_filter == 'celesa_diff':
-        # Celesa ≠ ML (tratando NULL≠NULL usando -1)
         clauses.append("(COALESCE(stock_celesa, -1) <> COALESCE(stock_idml, -1))")
 
     where_sql = " AND ".join(clauses) if clauses else "1=1"
     return where_sql, params
 
-
 # ===== Importa submódulos para adjuntar rutas al blueprint =====
 from . import condiciones_generales  # noqa: E402,F401
 from . import manejo_de_stock        # noqa: E402,F401
+from . import parametros_sale_terms_celesa  # <<< añade este import
