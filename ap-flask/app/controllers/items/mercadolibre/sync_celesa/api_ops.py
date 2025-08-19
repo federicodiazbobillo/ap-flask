@@ -11,8 +11,6 @@ def _bp():
 # DB
 from app.db import get_conn
 
-# Reglas de sale_terms
-from .parametros_sale_terms_celesa import get_sale_term_for_stock
 
 # Token (opcional)
 try:
