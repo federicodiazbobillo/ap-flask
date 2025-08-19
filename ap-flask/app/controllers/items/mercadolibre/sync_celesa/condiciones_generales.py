@@ -8,9 +8,15 @@ import requests
 from flask import jsonify
 
 
+
 from flask import (
     render_template, request, redirect, url_for, jsonify, current_app
 )
+
+@_bp().route('/bulk-put', methods=['POST'])
+def bulk_put():
+    # stub temporal
+    return jsonify({"ok": True}), 200
 
 # OJO: no exponemos el blueprint como variable global en este módulo.
 # Usamos un helper para obtenerlo cuando hace falta:
