@@ -307,7 +307,7 @@
       for (const chk of targets) {
         putRowInProgress(chk);
         // Emulación del PUT real
-        await sleep(2000);                 // <<<< emula la actualización
+        //await sleep(2000);                 // <<<< emula la actualización
         const code = 200;                  // TODO: reemplazar por el código real devuelto por tu endpoint
         putRowResult(chk, code);
       }

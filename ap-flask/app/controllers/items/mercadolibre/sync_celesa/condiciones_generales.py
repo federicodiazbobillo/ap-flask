@@ -33,14 +33,6 @@ try:
 except Exception:
     verificar_meli = None
 
-
-def bulk_put():
-    # Stub temporal para que url_for('sync_celesa_bp.bulk_put') exista y responda.
-    payload = request.get_json(silent=True) or {}
-    ids = payload.get('ids') or []
-    # Devolvemos 200 para cada id, para que el front muestre "200" luego del sleep.
-    return jsonify({"results": {str(i): 200 for i in ids}}), 200
-
 # ------------------- Helper: threads con app_context -------------------
 def _thread_entry(app, target, *args, **kwargs):
     with app.app_context():
@@ -361,6 +353,8 @@ def items_meli_legacy():
 
 
 # ------------------- Endpoints SINCRÓNICOS (compat) -------------------
+
+
 @_bp().route('/sync_celesa/normalize', methods=['POST'])
 @_bp().route('/items_meli/normalize_isbn', methods=['POST'])  # alias legacy
 def normalize_isbn():
@@ -880,3 +874,12 @@ def _run_job_verify(job_id):
         job["state"] = "error"
         job["message"] = f"{type(e).__name__}: {e}"
         job["finished_at"] = time.time()
+
+
+#----------------------- Boton de bulk ---------------------------
+@_bp().route('/bulk-put', methods=['POST'], endpoint='bulk_put')
+def bulk_put_stub():
+    data = request.get_json(silent=True) or {}
+    ids = [str(x) for x in (data.get('ids') or [])]
+    time.sleep(2)  # emula el PUT
+    return jsonify({"results": {i: 200 for i in ids}}), 200
