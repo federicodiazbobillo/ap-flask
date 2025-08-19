@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Inventario Rayo Ava — Cargar CSV</h3>
+  <p class="text-muted">
+    Columnas esperadas: <code>Imagen, Nombre, SKU, UPC, Disponibles, En inventario, Apartados</code>.
+  </p>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} mb-3">{{ message }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form action="{{ url_for('inventario_rayo_ava_bp.cargar') }}" method="post" enctype="multipart/form-data" class="border rounded p-3">
+    <div class="mb-3">
+      <label for="csv_file" class="form-label">Archivo CSV</label>
+      <input type="file" class="form-control" id="csv_file" name="csv_file" accept=".csv" required>
+    </div>
+    <button type="submit" class="btn btn-primary">
+      Cargar inventario
+    </button>
+  </form>
+
+  <hr>
+  <p class="small text-secondary">
+    Tip: si algún <code>SKU</code> no es numérico, se omitirá para mantener la PK numérica.  
+    Si necesitás permitir alfanuméricos, cambiá la columna <code>sku</code> a <code>VARCHAR(32)</code> en el DDL y ajustá el parser.
+  </p>
+</div>
+{% endblock %}

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Apricor{% endblock %}</title>
-
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <!-- CSS -->
     <link href="{{ url_for('static', filename='themes/sb-admin-2/css/sb-admin-2.min.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
@@ -131,6 +131,7 @@
                     <a class="collapse-item" href="{{ url_for('publicador_arnoia.index') }}">📥 Publicador Arnoia</a>
                     <a class="collapse-item" href="{{ url_for('items_mercadolibre_bp.items_sin_isbn') }}">Items sin ISBN</a>
                     <a class="collapse-item" href="{{ url_for('sync_celesa_bp.index') }}">Sync Celesa</a>
+                    <a class="collapse-item" href="{{ url_for('inventario_rayo_ava_bp.index') }}">Inventario Rayo Ava</a>
                 </div>
             </div>
         </li>

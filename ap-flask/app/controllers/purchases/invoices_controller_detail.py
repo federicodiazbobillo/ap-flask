@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, jsonify
 from app.db import get_conn
 from app.utils.order_status import estado_logico
 
@@ -9,9 +9,20 @@ def view(nro_fc):
     conn = get_conn()
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT id, fecha, proveedor, isbn, importe, order_id, tipo_factura,tc
-        FROM invoices_suppliers
-        WHERE nro_fc = %s
+        SELECT 
+            isup.id,
+            isup.fecha,
+            isup.proveedor,
+            isup.isbn,
+            isup.importe,
+            isup.order_id,
+            isup.tipo_factura,
+            isup.tc,
+            CASE WHEN ira.sku IS NULL THEN 0 ELSE 1 END AS en_rayo
+        FROM invoices_suppliers isup
+        LEFT JOIN inventario_rayo_ava ira
+            ON isup.isbn REGEXP '^[0-9]+$' AND ira.sku = CAST(isup.isbn AS UNSIGNED)
+        WHERE isup.nro_fc = %s
     """, (nro_fc,))
     items = cursor.fetchall()
     tc = items[0][7] if items else None
@@ -74,9 +85,7 @@ def vincular_orden():
     """, (order_id, item_id))
     conn.commit()
     cursor.close()
-    #flash("Orden vinculada exitosamente", "success")
     return redirect(request.referrer)
-
 
 @invoices_detail_bp.route('/desvincular_orden', methods=['POST'])
 def desvincular_orden():
@@ -90,7 +99,6 @@ def desvincular_orden():
     """, (item_id,))
     conn.commit()
     cursor.close()
-    flash("Orden desvinculada correctamente", "info")
     return redirect(request.referrer)
 
 @invoices_detail_bp.route('/actualizar_tc_factura', methods=['POST'])
@@ -106,5 +114,4 @@ def actualizar_tc_factura():
     """, (tc, nro_fc))
     conn.commit()
     cursor.close()
-    flash("Tipo de cambio de la factura actualizado", "success")
     return redirect(request.referrer)
