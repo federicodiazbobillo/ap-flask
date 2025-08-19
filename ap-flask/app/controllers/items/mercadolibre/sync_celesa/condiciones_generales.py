@@ -881,5 +881,5 @@ def _run_job_verify(job_id):
 def bulk_put_stub():
     data = request.get_json(silent=True) or {}
     ids = [str(x) for x in (data.get('ids') or [])]
-    time.sleep(2)  # emula el PUT
+    time.sleep(1)  # emula el PUT
     return jsonify({"results": {i: 200 for i in ids}}), 200

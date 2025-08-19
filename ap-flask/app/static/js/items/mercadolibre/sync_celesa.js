@@ -202,24 +202,34 @@
     if (isGlobalSelected()) return all;      // UI muestra progreso en visibles
     return all.filter(c => c.checked);
   }
-  function putRowInProgress(chk) {
+  
+    function putRowInProgress(chk) {
     const td = chk.closest('td');
     if (!td) return;
-    const id = (chk.value || chk.dataset.idml || '').replace(/[^A-Za-z0-9_-]/g, '_');
-    td.dataset.prev = td.innerHTML;
+
+    // guardamos el idml y lo dejamos en el <td>
+    const idml = String(chk.value || chk.dataset.idml || '').trim();
+    td.dataset.putTarget = idml;
+
+    const safeId = idml.replace(/[^A-Za-z0-9_-]/g, '_');
     td.innerHTML =
-      `<div class="custom-control custom-switch" style="transform:scale(.9); white-space:nowrap;">
-         <input type="checkbox" class="custom-control-input" id="sw_${id}" checked disabled>
-         <label class="custom-control-label" for="sw_${id}">Actualizando…</label>
-       </div>`;
-  }
-  function putRowResult(chk, code) {
-    const td = chk.closest('td');
+        `<div class="custom-control custom-switch" style="transform:scale(.9); white-space:nowrap;">
+        <input type="checkbox" class="custom-control-input" id="sw_${safeId}" checked disabled>
+        <label class="custom-control-label" for="sw_${safeId}">Actualizando…</label>
+        </div>`;
+    }
+
+    function putRowResult(chk, code) {
+    // el checkbox puede estar fuera del DOM; usamos el idml para ubicar el <td> destino
+    const idml = String(chk.value || chk.dataset.idml || '').trim();
+    const td = document.querySelector(`td[data-put-target="${idml}"]`);
     if (!td) return;
-    // Regla: 200 = OK (verde). Cualquier otro => error (rojo).
-    const cls = (code === 200) ? 'success' : 'danger';
+
+    const cls = (code === 200) ? 'success' : 'danger'; // 200 OK, cualquier otro error
     td.innerHTML = `<span class="badge badge-${cls}">${String(code)}</span>`;
-  }
+    delete td.dataset.putTarget;
+    }
+
   function updatePutButtonsEnabled() {
     const btnPutGeneral = qs('#btn_put_general');
     const btnPutStock   = qs('#btn_put_stock');
