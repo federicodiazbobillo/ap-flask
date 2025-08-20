@@ -257,7 +257,31 @@ def bulk_put():
         url = f"https://api.mercadolibre.com/items/{idml}"
         headers = {"Content-Type": "application/json", **_prefer_token_header()}
         r = requests.put(url, headers=headers, json=payload, timeout=20)
+
+        # Si Mercado Libre responde 429, logueamos info útil en el servidor
+        if r.status_code == 429:
+            try:
+                resp_body = r.json()
+            except Exception:
+                resp_body = (r.text[:2000] if getattr(r, "text", None) else None)
+
+            # Sanitizamos headers para no loguear credenciales/cookies
+            safe_headers = {
+                k: v for k, v in r.headers.items()
+                if k.lower() not in ("set-cookie", "authorization")
+            }
+
+            current_app.logger.warning(
+                "ML PUT 429 | idml=%s | headers=%r | response=%r | payload=%r",
+                idml, safe_headers, resp_body, payload
+            )
+
+            # Al frontend sólo le devolvemos el código, sin debug
+            return jsonify({"id": idml, "result": 429}), 200
+
+        # Para cualquier otro caso devolvemos el status del PUT tal cual
         return jsonify({"id": idml, "result": r.status_code}), 200
+
     except Exception:
         current_app.logger.exception("PUT error for %s", idml)
         return jsonify({"id": idml, "result": 0}), 200
