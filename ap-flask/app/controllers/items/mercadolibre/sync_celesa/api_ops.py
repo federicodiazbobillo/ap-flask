@@ -112,24 +112,36 @@ def _get_stock_celesa(idml: str) -> Optional[int]:
 
 def _build_sale_terms_for(stock: int):
     """
-    Arma sale_terms según reglas. Import perezoso para evitar ciclos.
-    Defaults seguros: 35 días si stock=0, 15 días si stock>0.
+    Arma sale_terms según reglas de la tabla:
+    - Busca la primera fila con max_stock >= stock (provider='celesa', action='publicar').
+    - Usa su delivery_days. Si no hay regla o hay error, fallback:
+        35 días si stock == 0, 15 días si stock > 0.
     """
+    # Normalización
     try:
-        from .parametros_sale_terms_celesa import get_sale_term_for_stock
-        rule = get_sale_term_for_stock(stock, provider='celesa') or {}
-        if (stock or 0) <= 0:
-            dias = int(rule.get('delivery_days') or 35)
-        else:
-            dias = int(rule.get('delivery_days') or 15)
+        s = int(stock or 0)
     except Exception:
-        dias = 35 if (stock or 0) <= 0 else 15
+        s = 0
+    if s < 0:
+        s = 0
+
+    try:
+        # Import perezoso para evitar ciclos
+        from .parametros_sale_terms_celesa import get_sale_term_for_stock
+        rule = get_sale_term_for_stock(s, provider='celesa', action='publicar') or {}
+        if rule.get('delivery_days') is not None:
+            dias = int(rule['delivery_days'])
+        else:
+            dias = 35 if s == 0 else 15
+    except Exception:
+        dias = 35 if s == 0 else 15
 
     return [
         {"id": "MANUFACTURING_TIME", "value_name": f"{dias} días"},
         {"id": "WARRANTY_TIME", "value_name": "90 días"},
         {"id": "WARRANTY_TYPE", "value_id": "2230279"},
     ]
+
 
 def _build_put_payload(stock: int) -> Dict[str, Any]:
     """Payload exacto acordado."""
