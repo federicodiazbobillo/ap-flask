@@ -84,9 +84,46 @@ def _ml_get_item_backoff(idml: str, max_retries: int = 5) -> Tuple[Optional[Dict
 
 # -------------------- Helpers negocio --------------------
 def _is_full(item_json: Dict) -> bool:
-    """Detecta FULL por shipping.logistic_type == 'fulfillment'."""
-    shipping = (item_json or {}).get("shipping") or {}
-    return (shipping.get("logistic_type") or "").lower() == "fulfillment"
+    """Detecta FULL por múltiples señales del payload de items."""
+    if not item_json:
+        return False
+
+    shipping = (item_json.get("shipping") or {})
+
+    # 1) logistic_type
+    lt = str(shipping.get("logistic_type") or "").strip().lower()
+    if lt == "fulfillment":
+        return True
+
+    # 2) tags a nivel item
+    item_tags = item_json.get("tags") or []
+    try:
+        for t in item_tags:
+            if "fulfillment" in str(t).strip().lower():
+                return True
+    except Exception:
+        pass
+
+    # 3) tags dentro de shipping
+    ship_tags = shipping.get("tags") or []
+    try:
+        for t in ship_tags:
+            if "fulfillment" in str(t).strip().lower():
+                return True
+    except Exception:
+        pass
+
+    # 4) sub_status defensivo
+    sub_status = item_json.get("sub_status") or []
+    try:
+        for s in sub_status:
+            if "fulfillment" in str(s).strip().lower():
+                return True
+    except Exception:
+        pass
+
+    return False
+
 
 
 def _status_allows_update(status: Optional[str]) -> bool:
