@@ -306,6 +306,10 @@ def bulk_put():
                 "ML PUT 429 (attempt %s/%s) | idml=%s | headers=%r | response=%r | payload=%r",
                 i + 1, MAX_ATTEMPTS, idml, safe_headers, resp_body, payload
             )
+            current_app.logger.warning(
+                "TOKEM: %s",
+                access_token
+            )            
             if i < MAX_ATTEMPTS - 1:
                 continue
             else:
