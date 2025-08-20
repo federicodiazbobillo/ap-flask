@@ -232,7 +232,7 @@ def _job_make(job_type, filters):
 
 
 # ------------------- Soporte: page_size variable (incluye "Todos") -------------------
-_ALLOWED_PAGE_SIZES = {50, 500, 1000, 5000, 10000}
+_ALLOWED_PAGE_SIZES = {50, 500, 1000, 5000, 10000, 30000}
 
 def _parse_page_size_arg():
     raw = (request.args.get('page_size') or str(PAGE_SIZE)).strip().lower()
