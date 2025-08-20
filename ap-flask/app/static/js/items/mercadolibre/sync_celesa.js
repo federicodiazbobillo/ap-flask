@@ -259,47 +259,63 @@ async function runPutOverSelection(btn) {
       // 1) Poner la fila en “Actualizando…”
       putRowInProgress(chk);
 
-      // 2) Emular tiempo de proceso
-      await sleep(2000);
+      // 2) (Opcional) pequeña espera para UX; podés quitarla si querés
+      await sleep(200);
 
-      // 3) Enviar SOLO este id
-      let code = 'ERR';
+      // 3) Enviar SOLO este id (1×1)
       const idml = String(chk.value || chk.dataset.idml || '').trim();
+      let resultForUI = 'ERR';
 
-      if (putUrl) {
+      if (putUrl && idml) {
         try {
-          const payload = { ids: [idml] }; // 1×1
           const r = await fetch(putUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            // importante: API ahora espera { id, emulate }
+            body: JSON.stringify({ id: idml, emulate: false })
           });
 
-          if (!r.ok) {
-            code = r.status || 500;              // error HTTP
+          // Si el HTTP es 401/403 (token inválido), mostramos ese código
+          if (r.status === 401 || r.status === 403) {
+            resultForUI = r.status;
           } else {
-            const js = await r.json().catch(() => ({}));
-            code = (js && js.results && js.results[idml] != null)
-              ? js.results[idml]
-              : 200;                              // por defecto OK si vuelve vacío
+            // Intentamos leer JSON y usamos el "result" del backend
+            let js = {};
+            try { js = await r.json(); } catch (_) {}
+
+            // Si backend envía "error" por logistic_type ausente, log de depuración
+            if (js && js.result === 'error' && js.debug_shipping !== undefined) {
+              console.warn('ML shipping sin logistic_type para', idml, js.debug_shipping);
+            }
+
+            // Reglas de mapeo:
+            // - numérico (200/404/…) => se muestra tal cual
+            // - string ("full", "GET:404", "NO_STOCK", "paused", …) => se muestra tal cual
+            // - si no viene result, caemos al status HTTP (no 200) o "ERR"
+            if (js && Object.prototype.hasOwnProperty.call(js, 'result')) {
+              resultForUI = js.result;
+            } else {
+              resultForUI = (r.ok ? 'ERR' : r.status || 'ERR');
+            }
           }
         } catch (e) {
-          code = 'ERR';
+          resultForUI = 'ERR';
         }
       } else {
-        // Sin endpoint => emulación local
-        code = 200;
+        // Sin endpoint o sin idml válido
+        resultForUI = 'ERR';
       }
 
       // 4) Pintar resultado SOLO de esta fila
-      putRowResult(chk, code);
+      // (200 => verde; cualquier otro string/num => rojo, manejado en putRowResult)
+      putRowResult(chk, resultForUI);
     }
-
   } finally {
     btn.innerHTML = oldHTML;
     btn.disabled = false;
   }
 }
+
 
 
   // ---------- Init ----------

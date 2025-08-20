@@ -84,46 +84,10 @@ def _ml_get_item_backoff(idml: str, max_retries: int = 5) -> Tuple[Optional[Dict
 
 # -------------------- Helpers negocio --------------------
 def _is_full(item_json: Dict) -> bool:
-    """Detecta FULL por múltiples señales del payload de items."""
-    if not item_json:
-        return False
-
-    shipping = (item_json.get("shipping") or {})
-
-    # 1) logistic_type
-    lt = str(shipping.get("logistic_type") or "").strip().lower()
-    if lt == "fulfillment":
-        return True
-
-    # 2) tags a nivel item
-    item_tags = item_json.get("tags") or []
-    try:
-        for t in item_tags:
-            if "fulfillment" in str(t).strip().lower():
-                return True
-    except Exception:
-        pass
-
-    # 3) tags dentro de shipping
-    ship_tags = shipping.get("tags") or []
-    try:
-        for t in ship_tags:
-            if "fulfillment" in str(t).strip().lower():
-                return True
-    except Exception:
-        pass
-
-    # 4) sub_status defensivo
-    sub_status = item_json.get("sub_status") or []
-    try:
-        for s in sub_status:
-            if "fulfillment" in str(s).strip().lower():
-                return True
-    except Exception:
-        pass
-
-    return False
-
+    """Detecta FULL por shipping.logistic_type == 'fulfillment'."""
+    shipping = (item_json or {}).get("shipping") or {}
+    ltype = (shipping.get("logistic_type") or "")
+    return isinstance(ltype, str) and ltype.lower() == "fulfillment"
 
 
 def _status_allows_update(status: Optional[str]) -> bool:
@@ -155,45 +119,6 @@ def _get_stock_celesa(idml: str) -> Optional[int]:
         # NO cerrar conn (flask_mysqldb la cierra en teardown)
 
 
-def _get_delivery_days_from_table(stock: int) -> Optional[int]:
-    """
-    Devuelve delivery_days buscando la PRIMERA fila con max_stock >= stock
-    para provider='celesa' y action='publicar'. Si no encuentra, None.
-    """
-    try:
-        s = int(stock or 0)
-    except Exception:
-        s = 0
-    if s < 0:
-        s = 0
-
-    conn = get_conn()
-    cur = conn.cursor()
-    try:
-        cur.execute(
-            """
-            SELECT delivery_days
-            FROM sale_terms_celesa
-            WHERE provider=%s AND action=%s AND max_stock >= %s
-            ORDER BY max_stock ASC
-            LIMIT 1
-            """,
-            ('celesa', 'publicar', s)
-        )
-        row = cur.fetchone()
-        if row and row[0] is not None:
-            return int(row[0])
-        return None
-    except Exception:
-        current_app.logger.exception("Error consultando sale_terms_celesa para stock=%s", stock)
-        return None
-    finally:
-        try:
-            cur.close()
-        except Exception:
-            pass
-
-
 def _build_sale_terms_for(stock: int):
     """
     Arma sale_terms según reglas de la tabla:
@@ -208,8 +133,15 @@ def _build_sale_terms_for(stock: int):
     if s < 0:
         s = 0
 
-    dias = _get_delivery_days_from_table(s)
-    if dias is None:
+    try:
+        # Import perezoso para evitar ciclos
+        from .parametros_sale_terms_celesa import get_sale_term_for_stock
+        rule = get_sale_term_for_stock(s, provider='celesa', action='publicar') or {}
+        if rule.get('delivery_days') is not None:
+            dias = int(rule['delivery_days'])
+        else:
+            dias = 35 if s == 0 else 15
+    except Exception:
         dias = 35 if s == 0 else 15
 
     return [
@@ -234,17 +166,18 @@ def _build_put_payload(stock: int) -> Dict[str, Any]:
 def bulk_put():
     """
     Espera JSON:
-      - { "id": "MLA123" }  (preferido)
+      - { "id": "MLA123" }  (preferido)   — procesa 1x1
       - o { "ids": ["MLA123"] } (compat)
       - opcional: { "emulate": true } para no hacer PUT real
 
     Flujo:
-      1) Verifica token con /users/me → si falla: HTTP 401/403 y body {"error":...}
+      1) Verifica token con /users/me → si falla: 401/403 {"error":"token_invalid"/...} (NO se refleja 200 en UI)
       2) GET /items/{id}   → si !=200 → {"id":..., "result": "GET:<code>"}
+         Si 200 pero NO hay shipping.logistic_type → {"id":..., "result":"error", "debug_shipping": {...}}
       3) Si FULL           → {"id":..., "result": "full"}
       4) Si status !active/paused → {"id":..., "result": "<status>"}
       5) Lee stock_celesa → None → {"id":..., "result": "NO_STOCK"}
-      6) PUT real (o emulación) → {"id":..., "result": <http_code_del_PUT>}
+      6) PUT real (o emulación) → {"id":..., "result": <http_code>}
     """
     data = request.get_json(silent=True) or {}
 
@@ -262,7 +195,7 @@ def bulk_put():
 
     emulate = bool(data.get("emulate", False))
 
-    # 1) Check token (si falla devolvemos ese HTTP code para que la UI muestre p.ej. 403)
+    # 1) Check token — si falla devolvemos el status real (401/403/…)
     ok_token, token_info, token_status = _check_token_valid()
     if not ok_token:
         return jsonify(token_info or {"error": "token_invalid"}), (token_status or 401)
@@ -272,8 +205,16 @@ def bulk_put():
     if code != 200:
         return jsonify({"id": idml, "result": f"GET:{code}"}), 200
 
+    # Validar logistic_type presente (para depurar el caso reportado)
+    shipping = (js or {}).get("shipping") or {}
+    logistic_type = shipping.get("logistic_type")
+    if not logistic_type:
+        # Log en servidor y enviar shipping al frontend para inspección en consola
+        current_app.logger.warning("Item %s sin logistic_type. shipping=%r", idml, shipping)
+        return jsonify({"id": idml, "result": "error", "debug_shipping": shipping}), 200
+
     # 3) FULL
-    if _is_full(js or {}):
+    if isinstance(logistic_type, str) and logistic_type.lower() == "fulfillment":
         return jsonify({"id": idml, "result": "full"}), 200
 
     # 4) Estado permitido para actualizar
@@ -291,22 +232,20 @@ def bulk_put():
         return jsonify({"id": idml, "result": "BAD_STOCK"}), 200
 
     # 6) Payload y PUT
-    payload = _build_put_payload(stock)
+    payload = _build_sale_terms_for(stock)  # solo para calcular días (opcional)
+    payload = _build_put_payload(stock)     # payload final acordado
 
     if emulate:
-        # Emulación (NO retorna 200 hasta aquí por token/GET; solo acá por PUT emulado)
-        time.sleep(2)
+        time.sleep(2)  # emulación
         return jsonify({"id": idml, "result": 200}), 200
 
     try:
         url = f"https://api.mercadolibre.com/items/{idml}"
         headers = {"Content-Type": "application/json", **_prefer_token_header()}
         r = requests.put(url, headers=headers, json=payload, timeout=20)
-        # Solo acá devolvemos 200 si lo dijo el PUT
         return jsonify({"id": idml, "result": r.status_code}), 200
     except Exception:
         current_app.logger.exception("PUT error for %s", idml)
-        # 0 = error de red/timeout
         return jsonify({"id": idml, "result": 0}), 200
 
 
@@ -337,6 +276,7 @@ def check_items():
                     "status": js.get("status"),
                     "shipping_logistic_type": shipping.get("logistic_type"),
                     "available_quantity": js.get("available_quantity"),
+                    "raw_shipping": shipping,  # útil para depurar
                 }
             }
         else:
