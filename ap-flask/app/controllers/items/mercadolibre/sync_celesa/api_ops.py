@@ -256,6 +256,7 @@ def bulk_put():
     try:
         url = f"https://api.mercadolibre.com/items/{idml}"
         headers = {"Content-Type": "application/json", **_prefer_token_header()}
+        time.sleep(0.5)  
         r = requests.put(url, headers=headers, json=payload, timeout=20)
 
         # Si Mercado Libre responde 429, logueamos info útil en el servidor
