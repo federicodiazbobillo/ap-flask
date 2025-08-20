@@ -121,10 +121,10 @@ def _get_stock_celesa(idml: str) -> Optional[int]:
 
 def _build_sale_terms_for(stock: int):
     """
-    Arma sale_terms según reglas de la tabla:
-    - Busca la primera fila con max_stock >= stock (provider='celesa', action='publicar').
-    - Usa su delivery_days. Si no hay regla o hay error, fallback:
-        35 días si stock == 0, 15 días si stock > 0.
+    Lee sale_terms_celesa: toma la primera fila con max_stock >= stock
+    (provider='celesa', action='publicar'). Si no hay, fallback:
+      - 35 días si stock == 0
+      - 15 días si stock > 0
     """
     try:
         s = int(stock or 0)
@@ -133,23 +133,37 @@ def _build_sale_terms_for(stock: int):
     if s < 0:
         s = 0
 
+    dias = 35 if s == 0 else 15  # fallback por si no hay regla/ocurre error
+
     try:
-        # Import perezoso para evitar ciclos
-        from .parametros_sale_terms_celesa import get_sale_term_for_stock
-        rule = get_sale_term_for_stock(s, provider='celesa', action='publicar') or {}
-        if rule.get('delivery_days') is not None:
-            dias = int(rule['delivery_days'])
-        else:
-            dias = 35 if s == 0 else 15
+        conn = get_conn()
+        cur = conn.cursor()
+        try:
+            cur.execute("""
+                SELECT delivery_days
+                FROM sale_terms_celesa
+                WHERE provider = %s
+                  AND action   = %s
+                  AND max_stock <= %s
+                ORDER BY max_stock DESC
+                LIMIT 1
+            """, ("celesa", "publicar", s))
+            row = cur.fetchone()
+            if row and row[0] is not None:
+                dias = int(row[0])
+        finally:
+            try: cur.close()
+            except Exception: pass
+        # NO cerramos conn: lo maneja flask_mysqldb en teardown
     except Exception:
-        dias = 35 if s == 0 else 15
+        # dejá 'dias' con el fallback
+        pass
 
     return [
         {"id": "MANUFACTURING_TIME", "value_name": f"{dias} días"},
         {"id": "WARRANTY_TIME", "value_name": "90 días"},
         {"id": "WARRANTY_TYPE", "value_id": "2230279"},
     ]
-
 
 def _build_put_payload(stock: int) -> Dict[str, Any]:
     """Payload exacto acordado."""
