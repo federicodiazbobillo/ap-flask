@@ -302,13 +302,13 @@ def bulk_put():
                 resp_body = (getattr(r, "text", "")[:2000] or None)
             safe_headers = {k: v for k, v in r.headers.items()
                             if k.lower() not in ("set-cookie", "authorization")}
+            #current_app.logger.warning(
+            #    "ML PUT 429 (attempt %s/%s) | idml=%s | headers=%r | response=%r | payload=%r",
+            #    i + 1, MAX_ATTEMPTS, idml, safe_headers, resp_body, payload
+            #)
             current_app.logger.warning(
-                "ML PUT 429 (attempt %s/%s) | idml=%s | headers=%r | response=%r | payload=%r",
-                i + 1, MAX_ATTEMPTS, idml, safe_headers, resp_body, payload
-            )
-            current_app.logger.warning(
-                "TOKEM: %s",
-                access_token
+                "ML PUT 429 (attempt %s/%s) | TOKEM: %s",
+                i + 1, MAX_ATTEMPTS, access_token
             )            
             if i < MAX_ATTEMPTS - 1:
                 continue
