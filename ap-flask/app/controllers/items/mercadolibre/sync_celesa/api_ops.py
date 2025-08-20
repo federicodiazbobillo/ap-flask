@@ -10,11 +10,16 @@ def _bp():
     from .index import sync_celesa_bp
     return sync_celesa_bp
 
-# Token (opcional) del sistema
+# Tokens
 try:
-    # verificar_meli() -> (access_token, user_id, error)
-    from app.integrations.mercadolibre.services.token_service import sync_celesa_token
+    # verificar_meli() -> (access_token, user_id, error)  (usa/actualiza DB)
+    # sync_celesa_token() -> (access_token, user_id, error)  (NO persiste; efímero)
+    from app.integrations.mercadolibre.services.token_service import (
+        verificar_meli,
+        sync_celesa_token,
+    )
 except Exception:
+    verificar_meli = None
     sync_celesa_token = None
 
 # DB
@@ -23,16 +28,27 @@ from app.db import get_conn
 
 # -------------------- Helpers token / headers --------------------
 def _prefer_token_header() -> Dict[str, str]:
-    """Devuelve Authorization Bearer si hay token válido; si no, {}."""
-    if not sync_celesa_token:
-        return {}
-    try:
-        access_token, user_id, error = sync_celesa_token()
-        if error or not access_token:
-            return {}
-        return {"Authorization": f"Bearer {access_token}"}
-    except Exception:
-        return {}
+    """
+    Usa el token “normal” para GETs y /users/me.
+    Sólo en el PUT con 429 pedimos uno efímero con sync_celesa_token().
+    """
+    # Prioridad: verificar_meli (no fuerces refresh en cada llamada)
+    if verificar_meli:
+        try:
+            access_token, user_id, error = verificar_meli()
+            if not error and access_token:
+                return {"Authorization": f"Bearer {access_token}"}
+        except Exception:
+            pass
+    # Fallback: si no existe verificar_meli, probamos efímero
+    if sync_celesa_token:
+        try:
+            access_token, user_id, error = sync_celesa_token()
+            if not error and access_token:
+                return {"Authorization": f"Bearer {access_token}"}
+        except Exception:
+            pass
+    return {}
 
 
 def _check_token_valid() -> Tuple[bool, Optional[Dict[str, Any]], Optional[int]]:
@@ -121,8 +137,9 @@ def _get_stock_celesa(idml: str) -> Optional[int]:
 
 def _build_sale_terms_for(stock: int):
     """
-    Lee sale_terms_celesa: toma la primera fila con max_stock >= stock
-    (provider='celesa', action='publicar'). Si no hay, fallback:
+    Lee sale_terms_celesa: toma la primera fila con max_stock <= stock
+    (provider='celesa', action='publicar') ORDER BY max_stock DESC LIMIT 1.
+    Fallback:
       - 35 días si stock == 0
       - 15 días si stock > 0
     """
@@ -133,13 +150,14 @@ def _build_sale_terms_for(stock: int):
     if s < 0:
         s = 0
 
-    dias = 35 if s == 0 else 15  # fallback por si no hay regla/ocurre error
+    dias = 35 if s == 0 else 15  # fallback
 
     try:
         conn = get_conn()
         cur = conn.cursor()
         try:
-            cur.execute("""
+            cur.execute(
+                """
                 SELECT delivery_days
                 FROM sale_terms_celesa
                 WHERE provider = %s
@@ -147,16 +165,19 @@ def _build_sale_terms_for(stock: int):
                   AND max_stock <= %s
                 ORDER BY max_stock DESC
                 LIMIT 1
-            """, ("celesa", "publicar", s))
+                """,
+                ("celesa", "publicar", s),
+            )
             row = cur.fetchone()
             if row and row[0] is not None:
                 dias = int(row[0])
         finally:
-            try: cur.close()
-            except Exception: pass
-        # NO cerramos conn: lo maneja flask_mysqldb en teardown
+            try:
+                cur.close()
+            except Exception:
+                pass
+        # conn: no cerrar (teardown)
     except Exception:
-        # dejá 'dias' con el fallback
         pass
 
     return [
@@ -164,6 +185,7 @@ def _build_sale_terms_for(stock: int):
         {"id": "WARRANTY_TIME", "value_name": "90 días"},
         {"id": "WARRANTY_TYPE", "value_id": "2230279"},
     ]
+
 
 def _build_put_payload(stock: int) -> Dict[str, Any]:
     """Payload exacto acordado."""
@@ -185,7 +207,7 @@ def bulk_put():
       - opcional: { "emulate": true } para no hacer PUT real
 
     Flujo:
-      1) Verifica token con /users/me → si falla: 401/403 {"error":"token_invalid"/...} (NO se refleja 200 en UI)
+      1) Verifica token con /users/me → si falla: 401/403 {"error":"token_invalid"/...}
       2) GET /items/{id}   → si !=200 → {"id":..., "result": "GET:<code>"}
          Si 200 pero NO hay shipping.logistic_type → {"id":..., "result":"error", "debug_shipping": {...}}
       3) Si FULL           → {"id":..., "result": "full"}
@@ -209,7 +231,7 @@ def bulk_put():
 
     emulate = bool(data.get("emulate", False))
 
-    # 1) Check token — si falla devolvemos el status real (401/403/…)
+    # 1) Check token
     ok_token, token_info, token_status = _check_token_valid()
     if not ok_token:
         return jsonify(token_info or {"error": "token_invalid"}), (token_status or 401)
@@ -219,11 +241,10 @@ def bulk_put():
     if code != 200:
         return jsonify({"id": idml, "result": f"GET:{code}"}), 200
 
-    # Validar logistic_type presente (para depurar el caso reportado)
+    # Validar logistic_type presente
     shipping = (js or {}).get("shipping") or {}
     logistic_type = shipping.get("logistic_type")
     if not logistic_type:
-        # Log en servidor y enviar shipping al frontend para inspección en consola
         current_app.logger.warning("Item %s sin logistic_type. shipping=%r", idml, shipping)
         return jsonify({"id": idml, "result": "error", "debug_shipping": shipping}), 200
 
@@ -245,47 +266,54 @@ def bulk_put():
     except Exception:
         return jsonify({"id": idml, "result": "BAD_STOCK"}), 200
 
-    # 6) Payload y PUT
-    payload = _build_sale_terms_for(stock)  # solo para calcular días (opcional)
-    payload = _build_put_payload(stock)     # payload final acordado
+    # 6) Payload
+    payload = _build_put_payload(stock)
 
     if emulate:
         time.sleep(2)  # emulación
         return jsonify({"id": idml, "result": 200}), 200
 
-    try:
-        url = f"https://api.mercadolibre.com/items/{idml}"
-        headers = {"Content-Type": "application/json", **_prefer_token_header()}
-        time.sleep(0.5)  
-        r = requests.put(url, headers=headers, json=payload, timeout=20)
+    # === PUT con hasta 3 intentos: si hay 429, pedimos token nuevo efímero y reintentamos ===
+    url = f"https://api.mercadolibre.com/items/{idml}"
+    MAX_ATTEMPTS = 3
+    last_status = 0
 
-        # Si Mercado Libre responde 429, logueamos info útil en el servidor
+    for i in range(MAX_ATTEMPTS):
+        # token efímero nuevo en cada intento (para 429/concurrencia)
+        access_token, _, _ = (sync_celesa_token() if sync_celesa_token else (None, None, None))
+        headers = {"Content-Type": "application/json"}
+        if access_token:
+            headers["Authorization"] = f"Bearer {access_token}"
+
+        time.sleep(0.5)  # leve throttle
+        try:
+            r = requests.put(url, headers=headers, json=payload, timeout=20)
+            last_status = r.status_code
+        except Exception:
+            current_app.logger.exception("PUT exception (attempt %s) idml=%s", i + 1, idml)
+            last_status = 0
+            break
+
         if r.status_code == 429:
+            # Logueo útil en servidor, pero al front sólo le enviamos el código final
             try:
                 resp_body = r.json()
             except Exception:
-                resp_body = (r.text[:2000] if getattr(r, "text", None) else None)
-
-            # Sanitizamos headers para no loguear credenciales/cookies
-            safe_headers = {
-                k: v for k, v in r.headers.items()
-                if k.lower() not in ("set-cookie", "authorization")
-            }
-
+                resp_body = (getattr(r, "text", "")[:2000] or None)
+            safe_headers = {k: v for k, v in r.headers.items()
+                            if k.lower() not in ("set-cookie", "authorization")}
             current_app.logger.warning(
-                "ML PUT 429 | idml=%s | headers=%r | response=%r | payload=%r",
-                idml, safe_headers, resp_body, payload
+                "ML PUT 429 (attempt %s/%s) | idml=%s | headers=%r | response=%r | payload=%r",
+                i + 1, MAX_ATTEMPTS, idml, safe_headers, resp_body, payload
             )
+            if i < MAX_ATTEMPTS - 1:
+                continue
+            else:
+                break
+        else:
+            break  # cualquier otro status (incluye 200)
 
-            # Al frontend sólo le devolvemos el código, sin debug
-            return jsonify({"id": idml, "result": 429}), 200
-
-        # Para cualquier otro caso devolvemos el status del PUT tal cual
-        return jsonify({"id": idml, "result": r.status_code}), 200
-
-    except Exception:
-        current_app.logger.exception("PUT error for %s", idml)
-        return jsonify({"id": idml, "result": 0}), 200
+    return jsonify({"id": idml, "result": last_status}), 200
 
 
 # -------------------- (opcional) Chequeo múltiple GET --------------------
