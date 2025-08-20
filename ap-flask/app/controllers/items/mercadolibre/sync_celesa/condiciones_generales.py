@@ -6,13 +6,9 @@ import uuid
 import threading
 import requests
 
-
-
-
 from flask import (
     render_template, request, redirect, url_for, jsonify, current_app
 )
-
 
 # OJO: no exponemos el blueprint como variable global en este módulo.
 # Usamos un helper para obtenerlo cuando hace falta:
@@ -32,6 +28,7 @@ try:
     from app.integrations.mercadolibre.services.token_service import verificar_meli
 except Exception:
     verificar_meli = None
+
 
 # ------------------- Helper: threads con app_context -------------------
 def _thread_entry(app, target, *args, **kwargs):
@@ -234,6 +231,22 @@ def _job_make(job_type, filters):
     return job
 
 
+# ------------------- Soporte: page_size variable (incluye "Todos") -------------------
+_ALLOWED_PAGE_SIZES = {50, 500, 1000, 5000, 10000}
+
+def _parse_page_size_arg():
+    raw = (request.args.get('page_size') or str(PAGE_SIZE)).strip().lower()
+    if raw in ('all', 'todos'):
+        return None  # None => sin LIMIT (Todos)
+    try:
+        val = int(raw)
+    except Exception:
+        val = PAGE_SIZE
+    if val not in _ALLOWED_PAGE_SIZES:
+        val = PAGE_SIZE
+    return val
+
+
 # ------------------- UI: listado / página principal -------------------
 @_bp().route('/sync_celesa')
 def sync_celesa_list():
@@ -244,6 +257,9 @@ def sync_celesa_list():
         page = 1
     if page < 1:
         page = 1
+
+    # page_size dinámico (o "Todos")
+    page_size = _parse_page_size_arg()
 
     # Tab activa
     active_tab = request.args.get('tab', 'general')
@@ -282,11 +298,27 @@ def sync_celesa_list():
     cur.execute(f"SELECT COUNT(*) FROM items_meli WHERE {where_sql}", params)
     total = cur.fetchone()[0] or 0
 
-    total_pages = max(1, math.ceil(total / PAGE_SIZE))
-    if page > total_pages:
-        page = total_pages
-
-    offset = (page - 1) * PAGE_SIZE
+    # Paginación/calculo de límites
+    if page_size is None:
+        # "Todos": sin LIMIT/OFFSET
+        total_pages = 1
+        page = 1
+        offset = 0
+        limit_clause = ""
+        data_params = params
+        page_size_display = 'all'
+        start = 1 if total > 0 else 0
+        end = total
+    else:
+        total_pages = max(1, math.ceil(total / page_size))
+        if page > total_pages:
+            page = total_pages
+        offset = (page - 1) * page_size
+        limit_clause = " LIMIT %s OFFSET %s "
+        data_params = params + [page_size, offset]
+        page_size_display = str(page_size)
+        start = (offset + 1) if total > 0 else 0
+        end = min(offset + page_size, total)
 
     # Datos
     data_sql = f"""
@@ -294,9 +326,8 @@ def sync_celesa_list():
         FROM items_meli
         WHERE {where_sql}
         ORDER BY id DESC
-        LIMIT %s OFFSET %s
+        {limit_clause}
     """
-    data_params = params + [PAGE_SIZE, offset]
     cur.execute(data_sql, data_params)
     rows = cur.fetchall()
 
@@ -317,16 +348,13 @@ def sync_celesa_list():
 
     cur.close()
 
-    start = (offset + 1) if total > 0 else 0
-    end = min(offset + PAGE_SIZE, total)
-
     return render_template(
         'items/mercadolibre/sync_celesa/index.html',
         rows=rows,
         page=page,
         total_pages=total_pages,
         total=total,
-        page_size=PAGE_SIZE,
+        page_size=page_size_display,  # 'all' o número (string)
         start=start,
         end=end,
         available_statuses=available_statuses,
@@ -353,8 +381,6 @@ def items_meli_legacy():
 
 
 # ------------------- Endpoints SINCRÓNICOS (compat) -------------------
-
-
 @_bp().route('/sync_celesa/normalize', methods=['POST'])
 @_bp().route('/items_meli/normalize_isbn', methods=['POST'])  # alias legacy
 def normalize_isbn():
@@ -469,7 +495,7 @@ def normalize_isbn():
     return redirect(url_for(
         'sync_celesa_bp.index',
         page=1, status=selected_statuses, isbn_ok=isbn_ok,
-        normalized=1, norm_total=norm_total, norm_ok=0, norm_bad=norm_bad
+        normalized=1, norm_total=norm_total, norm_ok=norm_ok, norm_bad=norm_bad
     ))
 
 
@@ -874,5 +900,3 @@ def _run_job_verify(job_id):
         job["state"] = "error"
         job["message"] = f"{type(e).__name__}: {e}"
         job["finished_at"] = time.time()
-
-

@@ -35,7 +35,17 @@
           {% endif %}
         {% endfor %}
 
-        <div class="ml-auto"></div>
+        <div class="ml-auto d-flex align-items-center">
+          <label class="mb-0 mr-2 small text-muted">Por página:</label>
+          <select name="page_size" id="page_size" class="form-control form-control-sm" style="width:120px;">
+            <option value="50"    {% if page_size == '50' %}selected{% endif %}>50</option>
+            <option value="500"   {% if page_size == '500' %}selected{% endif %}>500</option>
+            <option value="1000"  {% if page_size == '1000' %}selected{% endif %}>1000</option>
+            <option value="5000"  {% if page_size == '5000' %}selected{% endif %}>5000</option>
+            <option value="10000" {% if page_size == '10000' %}selected{% endif %}>10000</option>
+            <option value="all"   {% if page_size == 'all' %}selected{% endif %}>Todos</option>
+          </select>
+        </div>
       </div>
 
       <div class="mt-2 d-flex flex-wrap align-items-center">
@@ -57,7 +67,8 @@
         </div>
 
         <button type="submit" class="btn btn-primary btn-sm ml-3">Aplicar</button>
-        <a class="btn btn-light btn-sm ml-2" href="{{ url_for('sync_celesa_bp.index', page=1, tab=(active_tab or 'general')) }}">Limpiar</a>
+        <a class="btn btn-light btn-sm ml-2"
+           href="{{ url_for('sync_celesa_bp.index', page=1, tab=(active_tab or 'general'), page_size=page_size) }}">Limpiar</a>
       </div>
     </div>
   </div>
@@ -124,7 +135,7 @@
 
       <a class="btn btn-info btn-sm ml-3"
          href="{{ url_for('sync_celesa_bp.index',
-                          page=1, status=selected_statuses, isbn_ok=isbn_ok, analyze=1, tab='general') }}">
+                          page=1, status=selected_statuses, isbn_ok=isbn_ok, analyze=1, tab='general', page_size=page_size) }}">
         Analizar ISBN
       </a>
     </div>
@@ -139,7 +150,7 @@
     {% endif %}
 
     <p class="text-muted mb-2">
-      Mostrando {{ start }}–{{ end }} de {{ total }} registros • {{ page_size }} por página
+      Mostrando {{ start }}–{{ end }} de {{ total }} registros • {{ 'Todos' if page_size == 'all' else page_size }} por página
       {% if selected_statuses and selected_statuses|length > 0 %}
         • Status:
         {% for s in selected_statuses %}
@@ -152,19 +163,19 @@
       {% if stock_filter == 'celesa_zero_ml_positive' %}
         • Stock: <span class="badge badge-warning">Celesa = 0 y ML ≥ 1</span>
         <a class="btn btn-link btn-sm ml-1"
-           href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='general') }}">
+           href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='general', page_size=page_size) }}">
           Quitar filtro de stock
         </a>
       {% elif stock_filter == 'celesa_positive_ml_zero' %}
         • Stock: <span class="badge badge-warning">Celesa &gt; 0 y ML = 0</span>
         <a class="btn btn-link btn-sm ml-1"
-           href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='general') }}">
+           href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='general', page_size=page_size) }}">
           Quitar filtro de stock
         </a>
       {% elif stock_filter == 'celesa_diff' %}
         • Stock: <span class="badge badge-warning">Celesa ≠ ML</span>
         <a class="btn btn-link btn-sm ml-1"
-           href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='general') }}">
+           href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='general', page_size=page_size) }}">
           Quitar filtro de stock
         </a>
       {% endif %}
@@ -241,22 +252,22 @@
       <ul class="pagination">
         <li class="page-item {% if page == 1 %}disabled{% endif %}">
           <a class="page-link"
-             href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='general') }}">« Primero</a>
+             href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='general', page_size=page_size) }}">« Primero</a>
         </li>
         <li class="page-item {% if page == 1 %}disabled{% endif %}">
           <a class="page-link"
-             href="{{ url_for('sync_celesa_bp.index', page=(page-1 if page>1 else 1), status=selected_statuses, isbn_ok=isbn_ok, tab='general') }}">‹ Anterior</a>
+             href="{{ url_for('sync_celesa_bp.index', page=(page-1 if page>1 else 1), status=selected_statuses, isbn_ok=isbn_ok, tab='general', page_size=page_size) }}">‹ Anterior</a>
         </li>
         <li class="page-item disabled">
           <span class="page-link">Página {{ page }} de {{ total_pages }}</span>
         </li>
         <li class="page-item {% if page == total_pages %}disabled{% endif %}">
           <a class="page-link"
-             href="{{ url_for('sync_celesa_bp.index', page=(page+1 if page<total_pages else total_pages), status=selected_statuses, isbn_ok=isbn_ok, tab='general') }}">Siguiente ›</a>
+             href="{{ url_for('sync_celesa_bp.index', page=(page+1 if page<total_pages else total_pages), status=selected_statuses, isbn_ok=isbn_ok, tab='general', page_size=page_size) }}">Siguiente ›</a>
         </li>
         <li class="page-item {% if page == total_pages %}disabled{% endif %}">
           <a class="page-link"
-             href="{{ url_for('sync_celesa_bp.index', page=total_pages, status=selected_statuses, isbn_ok=isbn_ok, tab='general') }}">Última »</a>
+             href="{{ url_for('sync_celesa_bp.index', page=total_pages, status=selected_statuses, isbn_ok=isbn_ok, tab='general', page_size=page_size) }}">Última »</a>
         </li>
       </ul>
     </nav>
@@ -271,25 +282,25 @@
 
         <div class="btn-group" role="group" aria-label="Filtros de stock">
           <a class="btn btn-outline-primary btn-sm {% if stock_filter == 'celesa_zero_ml_positive' %}active{% endif %}"
-             href="{{ url_for('sync_celesa_bp.index', page=1, tab='stock', status=selected_statuses, isbn_ok=isbn_ok, stock_filter='celesa_zero_ml_positive') }}">
+             href="{{ url_for('sync_celesa_bp.index', page=1, tab='stock', status=selected_statuses, isbn_ok=isbn_ok, stock_filter='celesa_zero_ml_positive', page_size=page_size) }}">
             Celesa = 0 y ML ≥ 1
           </a>
         </div>
 
         <div class="btn-group ml-1" role="group" aria-label="Filtros de stock 2">
           <a class="btn btn-outline-primary btn-sm {% if stock_filter == 'celesa_positive_ml_zero' %}active{% endif %}"
-             href="{{ url_for('sync_celesa_bp.index', page=1, tab='stock', status=selected_statuses, isbn_ok=isbn_ok, stock_filter='celesa_positive_ml_zero') }}">
+             href="{{ url_for('sync_celesa_bp.index', page=1, tab='stock', status=selected_statuses, isbn_ok=isbn_ok, stock_filter='celesa_positive_ml_zero', page_size=page_size) }}">
             Celesa &gt; 0 y ML = 0
           </a>
           <a class="btn btn-outline-primary btn-sm {% if stock_filter == 'celesa_diff' %}active{% endif %}"
-             href="{{ url_for('sync_celesa_bp.index', page=1, tab='stock', status=selected_statuses, isbn_ok=isbn_ok, stock_filter='celesa_diff') }}">
+             href="{{ url_for('sync_celesa_bp.index', page=1, tab='stock', status=selected_statuses, isbn_ok=isbn_ok, stock_filter='celesa_diff', page_size=page_size) }}">
             Celesa ≠ ML
           </a>
         </div>
 
         {% if stock_filter %}
           <a class="btn btn-link btn-sm ml-2"
-             href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='stock') }}">
+             href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='stock', page_size=page_size) }}">
             Quitar filtro
           </a>
         {% endif %}
@@ -299,7 +310,8 @@
         </small>
       </div>
     </div>
-    <!-- ⬇️ Botón PUT para la pestaña General -->
+
+    <!-- Botón PUT (pestaña Stock) -->
     <div class="mb-2">
       <button id="btn_put_general"
               type="button"
@@ -309,8 +321,9 @@
         Actualizar en ML (PUT)
       </button>
     </div>
+
     <p class="text-muted mb-2">
-      Mostrando {{ start }}–{{ end }} de {{ total }} registros • {{ page_size }} por página
+      Mostrando {{ start }}–{{ end }} de {{ total }} registros • {{ 'Todos' if page_size == 'all' else page_size }} por página
       {% if stock_filter == 'celesa_zero_ml_positive' %}
         • Stock: <span class="badge badge-warning">Celesa = 0 y ML ≥ 1</span>
       {% elif stock_filter == 'celesa_positive_ml_zero' %}
@@ -366,22 +379,22 @@
       <ul class="pagination">
         <li class="page-item {% if page == 1 %}disabled{% endif %}">
           <a class="page-link"
-             href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='stock') }}">« Primero</a>
+             href="{{ url_for('sync_celesa_bp.index', page=1, status=selected_statuses, isbn_ok=isbn_ok, tab='stock', page_size=page_size) }}">« Primero</a>
         </li>
         <li class="page-item {% if page == 1 %}disabled{% endif %}">
           <a class="page-link"
-             href="{{ url_for('sync_celesa_bp.index', page=(page-1 if page>1 else 1), status=selected_statuses, isbn_ok=isbn_ok, tab='stock') }}">‹ Anterior</a>
+             href="{{ url_for('sync_celesa_bp.index', page=(page-1 if page>1 else 1), status=selected_statuses, isbn_ok=isbn_ok, tab='stock', page_size=page_size) }}">‹ Anterior</a>
         </li>
         <li class="page-item disabled">
           <span class="page-link">Página {{ page }} de {{ total_pages }}</span>
         </li>
         <li class="page-item {% if page == total_pages %}disabled{% endif %}">
           <a class="page-link"
-             href="{{ url_for('sync_celesa_bp.index', page=(page+1 if page<total_pages else total_pages), status=selected_statuses, isbn_ok=isbn_ok, tab='stock') }}">Siguiente ›</a>
+             href="{{ url_for('sync_celesa_bp.index', page=(page+1 if page<total_pages else total_pages), status=selected_statuses, isbn_ok=isbn_ok, tab='stock', page_size=page_size) }}">Siguiente ›</a>
         </li>
         <li class="page-item {% if page == total_pages %}disabled{% endif %}">
           <a class="page-link"
-             href="{{ url_for('sync_celesa_bp.index', page=total_pages, status=selected_statuses, isbn_ok=isbn_ok, tab='stock') }}">Última »</a>
+             href="{{ url_for('sync_celesa_bp.index', page=total_pages, status=selected_statuses, isbn_ok=isbn_ok, tab='stock', page_size=page_size) }}">Última »</a>
         </li>
       </ul>
     </nav>
@@ -393,6 +406,7 @@
 <input type="hidden" id="filter_isbn_ok" value="{{ isbn_ok or '' }}">
 <input type="hidden" id="activeTab" value="{{ active_tab or 'general' }}">
 <input type="hidden" id="sel_total" value="{{ total }}"> {# usado por el hint del checkbox global #}
+<input type="hidden" id="page_size_current" value="{{ page_size }}">
 
 <!-- Plantilla de URL para consultar estado del job -->
 <div id="jobConfig"
