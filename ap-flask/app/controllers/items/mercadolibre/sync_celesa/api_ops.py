@@ -13,9 +13,9 @@ def _bp():
 # Token (opcional) del sistema
 try:
     # verificar_meli() -> (access_token, user_id, error)
-    from app.integrations.mercadolibre.services.token_service import verificar_meli
+    from app.integrations.mercadolibre.services.token_service import sync_celesa_token
 except Exception:
-    verificar_meli = None
+    sync_celesa_token = None
 
 # DB
 from app.db import get_conn
@@ -24,10 +24,10 @@ from app.db import get_conn
 # -------------------- Helpers token / headers --------------------
 def _prefer_token_header() -> Dict[str, str]:
     """Devuelve Authorization Bearer si hay token válido; si no, {}."""
-    if not verificar_meli:
+    if not sync_celesa_token:
         return {}
     try:
-        access_token, user_id, error = verificar_meli()
+        access_token, user_id, error = sync_celesa_token()
         if error or not access_token:
             return {}
         return {"Authorization": f"Bearer {access_token}"}

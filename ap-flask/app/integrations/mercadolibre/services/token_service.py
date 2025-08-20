@@ -53,3 +53,47 @@ def verificar_meli():
     
 
     return new_access_token, user_id, None
+
+
+
+
+def sync_celesa_token():
+    """
+    Genera un access_token NUEVO usando el refresh_token actual.
+    NO guarda nada en la base. Sólo devuelve (access_token, user_id, error).
+    """
+    try:
+        conn = get_conn()
+        cursor = conn.cursor()
+        cursor.execute("SELECT user_id, access_token, refresh_token, app_id, secret_key FROM meli_access LIMIT 1")
+        row = cursor.fetchone()
+        cursor.close()
+    except Exception as e:
+        return None, None, "db_error: %s" % type(e).__name__
+
+    if not row:
+        return None, None, "no_credentials"
+
+    user_id, access_token, refresh_token, app_id, secret_key = row
+
+    token_url = "https://api.mercadolibre.com/oauth/token"
+    payload = {
+        "grant_type": "refresh_token",
+        "client_id": app_id,
+        "client_secret": secret_key,
+        "refresh_token": refresh_token
+    }
+
+    try:
+        r = requests.post(token_url, data=payload, timeout=15)
+        data = r.json()
+    except Exception as e:
+        return None, user_id, "token_request_failed:%s" % type(e).__name__
+
+    if r.status_code != 200 or "access_token" not in data:
+        # devolvemos el body para depurar si hace falta
+        return None, user_id, "refresh_failed:%s" % str(data)
+
+    new_access_token = data["access_token"]
+    # IMPORTANTE: NO guardamos en DB
+    return new_access_token, user_id, None
