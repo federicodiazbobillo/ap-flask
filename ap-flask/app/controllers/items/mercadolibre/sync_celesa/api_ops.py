@@ -20,6 +20,7 @@ except Exception:
 # DB
 from app.db import get_conn
 
+
 # -------------------- Helpers token / headers --------------------
 def _prefer_token_header() -> Dict[str, str]:
     """Devuelve Authorization Bearer si hay token válido; si no, {}."""
@@ -32,6 +33,7 @@ def _prefer_token_header() -> Dict[str, str]:
         return {"Authorization": f"Bearer {access_token}"}
     except Exception:
         return {}
+
 
 def _check_token_valid() -> Tuple[bool, Optional[Dict[str, Any]], Optional[int]]:
     """
@@ -51,6 +53,7 @@ def _check_token_valid() -> Tuple[bool, Optional[Dict[str, Any]], Optional[int]]
         current_app.logger.exception("Token check failed")
         return False, {"error": f"token_check_failed: {type(e).__name__}"}, 0
 
+
 # -------------------- Helpers ML --------------------
 def _ml_get_item(idml: str, timeout: int = 15) -> Tuple[Optional[Dict], int]:
     """GET /items/{id} con Bearer (reintenta sin header si 401/403)."""
@@ -66,6 +69,7 @@ def _ml_get_item(idml: str, timeout: int = 15) -> Tuple[Optional[Dict], int]:
     except Exception:
         return None, 0  # error de red
 
+
 def _ml_get_item_backoff(idml: str, max_retries: int = 5) -> Tuple[Optional[Dict], int]:
     """Backoff simple para 429/50x."""
     tries = 0
@@ -77,15 +81,18 @@ def _ml_get_item_backoff(idml: str, max_retries: int = 5) -> Tuple[Optional[Dict
             continue
         return js, code
 
+
 # -------------------- Helpers negocio --------------------
 def _is_full(item_json: Dict) -> bool:
     """Detecta FULL por shipping.logistic_type == 'fulfillment'."""
     shipping = (item_json or {}).get("shipping") or {}
     return (shipping.get("logistic_type") or "").lower() == "fulfillment"
 
+
 def _status_allows_update(status: Optional[str]) -> bool:
     """Sólo se permite actualizar si el estado es active o paused."""
     return (status or "").lower() in ("active", "paused")
+
 
 def _get_stock_celesa(idml: str) -> Optional[int]:
     """
@@ -110,14 +117,12 @@ def _get_stock_celesa(idml: str) -> Optional[int]:
             pass
         # NO cerrar conn (flask_mysqldb la cierra en teardown)
 
-def _build_sale_terms_for(stock: int):
+
+def _get_delivery_days_from_table(stock: int) -> Optional[int]:
     """
-    Arma sale_terms según reglas de la tabla:
-    - Busca la primera fila con max_stock >= stock (provider='celesa', action='publicar').
-    - Usa su delivery_days. Si no hay regla o hay error, fallback:
-        35 días si stock == 0, 15 días si stock > 0.
+    Devuelve delivery_days buscando la PRIMERA fila con max_stock >= stock
+    para provider='celesa' y action='publicar'. Si no encuentra, None.
     """
-    # Normalización
     try:
         s = int(stock or 0)
     except Exception:
@@ -125,15 +130,49 @@ def _build_sale_terms_for(stock: int):
     if s < 0:
         s = 0
 
+    conn = get_conn()
+    cur = conn.cursor()
     try:
-        # Import perezoso para evitar ciclos
-        from .parametros_sale_terms_celesa import get_sale_term_for_stock
-        rule = get_sale_term_for_stock(s, provider='celesa', action='publicar') or {}
-        if rule.get('delivery_days') is not None:
-            dias = int(rule['delivery_days'])
-        else:
-            dias = 35 if s == 0 else 15
+        cur.execute(
+            """
+            SELECT delivery_days
+            FROM sale_terms_celesa
+            WHERE provider=%s AND action=%s AND max_stock >= %s
+            ORDER BY max_stock ASC
+            LIMIT 1
+            """,
+            ('celesa', 'publicar', s)
+        )
+        row = cur.fetchone()
+        if row and row[0] is not None:
+            return int(row[0])
+        return None
     except Exception:
+        current_app.logger.exception("Error consultando sale_terms_celesa para stock=%s", stock)
+        return None
+    finally:
+        try:
+            cur.close()
+        except Exception:
+            pass
+
+
+def _build_sale_terms_for(stock: int):
+    """
+    Arma sale_terms según reglas de la tabla:
+    - Busca la primera fila con max_stock >= stock (provider='celesa', action='publicar').
+    - Usa su delivery_days. Si no hay regla o hay error, fallback:
+        35 días si stock == 0, 15 días si stock > 0.
+    """
+    try:
+        s = int(stock or 0)
+    except Exception:
+        s = 0
+    if s < 0:
+        s = 0
+
+    dias = _get_delivery_days_from_table(s)
+    if dias is None:
         dias = 35 if s == 0 else 15
 
     return [
@@ -152,6 +191,7 @@ def _build_put_payload(stock: int) -> Dict[str, Any]:
         "sale_terms": _build_sale_terms_for(int(stock)),
     }
 
+
 # -------------------- API: bulk_put (1x1) --------------------
 @_bp().route('/bulk-put', methods=['POST'], endpoint='bulk_put')
 def bulk_put():
@@ -162,12 +202,12 @@ def bulk_put():
       - opcional: { "emulate": true } para no hacer PUT real
 
     Flujo:
-      1) Verifica token con /users/me → si falla: 401/403 {"error":"token_invalid"/...}
+      1) Verifica token con /users/me → si falla: HTTP 401/403 y body {"error":...}
       2) GET /items/{id}   → si !=200 → {"id":..., "result": "GET:<code>"}
       3) Si FULL           → {"id":..., "result": "full"}
       4) Si status !active/paused → {"id":..., "result": "<status>"}
       5) Lee stock_celesa → None → {"id":..., "result": "NO_STOCK"}
-      6) PUT real (o emulación) → {"id":..., "result": <http_code>}
+      6) PUT real (o emulación) → {"id":..., "result": <http_code_del_PUT>}
     """
     data = request.get_json(silent=True) or {}
 
@@ -185,7 +225,7 @@ def bulk_put():
 
     emulate = bool(data.get("emulate", False))
 
-    # 1) Check token
+    # 1) Check token (si falla devolvemos ese HTTP code para que la UI muestre p.ej. 403)
     ok_token, token_info, token_status = _check_token_valid()
     if not ok_token:
         return jsonify(token_info or {"error": "token_invalid"}), (token_status or 401)
@@ -217,17 +257,21 @@ def bulk_put():
     payload = _build_put_payload(stock)
 
     if emulate:
-        time.sleep(2)  # emulación
+        # Emulación (NO retorna 200 hasta aquí por token/GET; solo acá por PUT emulado)
+        time.sleep(2)
         return jsonify({"id": idml, "result": 200}), 200
 
     try:
         url = f"https://api.mercadolibre.com/items/{idml}"
         headers = {"Content-Type": "application/json", **_prefer_token_header()}
         r = requests.put(url, headers=headers, json=payload, timeout=20)
+        # Solo acá devolvemos 200 si lo dijo el PUT
         return jsonify({"id": idml, "result": r.status_code}), 200
-    except Exception as e:
+    except Exception:
         current_app.logger.exception("PUT error for %s", idml)
+        # 0 = error de red/timeout
         return jsonify({"id": idml, "result": 0}), 200
+
 
 # -------------------- (opcional) Chequeo múltiple GET --------------------
 @_bp().route('/api/items/check', methods=['POST'], endpoint='check_items')
