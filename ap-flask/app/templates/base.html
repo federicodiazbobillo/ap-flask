@@ -159,8 +159,8 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#" onclick="mostrarToken()">🔍 Ver token</a>
                     </li>
-                    <li class="nav-item">
-                        <span class="nav-link text-gray-600 small">Bienvenido, {{ session['user'] }}</span>
+                        <li class="nav-item">
+                        <span id="rayo-status" class="nav-link text-muted">⏳ Rayo…</span>
                     </li>
                 </ul>
             </nav>
@@ -208,66 +208,90 @@
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap4.min.js"></script>
 
 <script>
-    function mostrarToken() {
-        fetch('/meli/token')
-            .then(response => response.json())
-            .then(data => {
-                const contenido = document.getElementById('contenidoToken');
-                contenido.textContent = data.access_token || '⚠️ No se pudo obtener el token.';
-                $('#modalToken').modal('show');
-            })
-            .catch(error => {
-                document.getElementById('contenidoToken').textContent = '❌ Error inesperado:\n' + error;
-                $('#modalToken').modal('show');
-                console.error(error);
-            });
-    }
+  function mostrarToken() {
+    fetch('/meli/token')
+      .then(r => r.ok ? r.json() : Promise.resolve({}))
+      .then(data => {
+        const contenido = document.getElementById('contenidoToken');
+        contenido.textContent = data.access_token || '⚠️ No se pudo obtener el token.';
+        $('#modalToken').modal('show');
+      })
+      .catch(err => {
+        document.getElementById('contenidoToken').textContent = '❌ Error inesperado:\n' + err;
+        $('#modalToken').modal('show');
+        console.error(err);
+      });
+  }
 
-    function copiarToken() {
-        const contenido = document.getElementById('contenidoToken').textContent;
-        navigator.clipboard.writeText(contenido).then(() => {
-            const confirm = document.getElementById('copy-confirm');
-            confirm.style.display = 'inline';
-            setTimeout(() => { confirm.style.display = 'none'; }, 2000);
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', () => {
-        fetch('/meli/token')
-            .then(response => response.json())
-            .then(data => {
-                const el = document.getElementById('token-status');
-                if (!el) return;
-
-                if (data.access_token) {
-                    el.textContent = '✅ Token Mercado Libre válido';
-                    el.classList.replace('text-muted', 'text-success');
-                } else {
-                    el.textContent = '❌ Token inválido';
-                    el.classList.replace('text-muted', 'text-danger');
-                }
-            })
-            .catch(error => {
-                const el = document.getElementById('token-status');
-                if (el) {
-                    el.textContent = '⚠️ Error al verificar token';
-                    el.classList.add('text-danger');
-                }
-                console.error('ERROR verificando token:', error);
-            });
-
-        window.addEventListener('load', () => {
-            document.body.classList.remove('loading');
-            const modal = document.getElementById('modalCargandoInicio');
-            if (modal) {
-                modal.classList.remove('show');
-                modal.style.display = 'none';
-                document.body.classList.remove('modal-open');
-                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
-            }
-        });
+  function copiarToken() {
+    const contenido = document.getElementById('contenidoToken').textContent;
+    navigator.clipboard.writeText(contenido).then(() => {
+      const confirm = document.getElementById('copy-confirm');
+      confirm.style.display = 'inline';
+      setTimeout(() => { confirm.style.display = 'none'; }, 2000);
     });
+  }
+
+  // Oculta el modal/overlay de carga si existe (no rompe si no está)
+  function hideAppLoader() {
+    const modal = document.getElementById('modalCargandoInicio');
+    if (modal) { modal.classList.remove('show'); modal.style.display = 'none'; }
+    document.body.classList.remove('loading');
+    const backdrops = document.querySelectorAll('.modal-backdrop');
+    backdrops.forEach(b => b.remove());
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // --- estado Meli ---
+    const pToken = fetch('/meli/token')
+      .then(r => r.ok ? r.json() : Promise.resolve({}))
+      .then(data => {
+        const el = document.getElementById('token-status');
+        if (!el) return;
+        if (data.access_token) {
+          el.textContent = '✅ Token Mercado Libre válido';
+          el.classList.replace('text-muted', 'text-success');
+        } else {
+          el.textContent = '❌ Token inválido';
+          el.classList.replace('text-muted', 'text-danger');
+        }
+      })
+      .catch(() => {
+        const el = document.getElementById('token-status');
+        if (el) {
+          el.textContent = '⚠️ Error al verificar token';
+          el.classList.add('text-danger');
+        }
+      });
+
+    // --- estado Rayo ---
+    const pRayo = fetch("{{ url_for('rayo_bp.rayo_ping') }}")
+      .then(r => r.ok ? r.json() : Promise.resolve({ ok:false, error:'HTTP ' + r.status }))
+      .then(data => {
+        const el = document.getElementById('rayo-status');
+        if (!el) return;
+        if (data.ok) {
+          el.textContent = '✅ Rayo conectado';
+          el.classList.replace('text-muted', 'text-success');
+        } else {
+          el.textContent = '❌ Rayo desconectado';
+          el.classList.replace('text-muted', 'text-danger');
+          if (data.error) console.warn('Rayo:', data.error);
+        }
+      })
+      .catch(() => {
+        const el = document.getElementById('rayo-status');
+        if (el) {
+          el.textContent = '⚠️ Falló /rayo/ping';
+          el.classList.replace('text-muted', 'text-danger');
+        }
+      });
+
+    // Cerrar overlay siempre, sin depender del resultado de los fetch
+    Promise.allSettled([pToken, pRayo]).finally(hideAppLoader);
+  });
 </script>
+
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     // Quita clases que lo colapsan

@@ -4,10 +4,11 @@ from app.config import Config
 from app.db import get_conn
 from app.utils.blueprint_loader import register_blueprints
 from app.extensions import mysql
-
+from dotenv import load_dotenv
 
 
 def create_app():
+    load_dotenv()
     app = Flask(__name__, static_folder='static', template_folder='templates')
     app.config.from_object(Config)
     mysql.init_app(app)
