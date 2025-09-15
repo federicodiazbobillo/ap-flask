@@ -4,7 +4,7 @@ from app.db import get_conn
 orders_logistica_bp = Blueprint('orders_logistica', __name__, url_prefix='/orders/logistica')
 
 def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, 
-                  venc_desde=None, venc_hasta=None, nota_like=None, isbn=None):
+                  venc_desde=None, venc_hasta=None, nota_like=None, isbn=None, excluir_entregados=True):
     """
     Obtiene órdenes con filtros de ID, rango de creación y rango de vencimiento (inclusive),
     agrupa por pack_id (o order_id si pack_id es null) y normaliza datos.
@@ -40,7 +40,8 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None,
             "EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = o.order_id AND oi.seller_sku = %s)"
         )
         params.append(isbn)
-    
+    if excluir_entregados:
+        filters.append("NOT (o.status = 'paid' AND s.status = 'delivered')")   
     # Base de consulta incluyendo JOIN con shipments y order_items
     base_query = (
         "SELECT o.order_id, "
@@ -166,9 +167,6 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None,
 
 @orders_logistica_bp.route('/')
 def index_logistica():
-    """
-    Vista HTML de logística con filtros por ID, fechas y nota.
-    """
     id_param = request.args.get('id')
     fecha_desde = request.args.get('fecha_desde')
     fecha_hasta = request.args.get('fecha_hasta')
@@ -177,7 +175,13 @@ def index_logistica():
     nota_like = request.args.get("nota")
     isbn = request.args.get("isbn")
 
-    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like, isbn)
+    # NEW: checkbox excluir_entregados (1 por defecto = excluir)
+    excluir_entregados = request.args.get('excluir_entregados', '1') == '1'
+
+    orders = _fetch_orders(
+        id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like, isbn,
+        excluir_entregados=excluir_entregados  # NEW
+    )
 
     return render_template(
         'orders/logistica.html',
@@ -189,24 +193,28 @@ def index_logistica():
         filtro_venc_desde=venc_desde,
         filtro_venc_hasta=venc_hasta,
         nota_like=nota_like,
-        filtro_isbn=isbn
+        filtro_isbn=isbn,
+        filtro_excluir_entregados=excluir_entregados  # NEW (para el checkbox)
     )
 
 @orders_logistica_bp.route('/search')
 def search_logistica():
-    """
-    Endpoint JSON para búsqueda de órdenes con filtros.
-    """
     id_param = request.args.get('id')
     fecha_desde = request.args.get('fecha_desde')
     fecha_hasta = request.args.get('fecha_hasta')
     venc_desde = request.args.get('venc_desde')
     venc_hasta = request.args.get('venc_hasta')
     nota_like = request.args.get("nota")
-    isbn =  request.args.get("isbn")
+    isbn = request.args.get("isbn")
 
-    orders = _fetch_orders(id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like, isbn)
-    return jsonify({'orders': orders})
+    # NEW: default = excluir
+    excluir_entregados = request.args.get('excluir_entregados', '1') == '1'
+
+    orders = _fetch_orders(
+        id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like, isbn,
+        excluir_entregados=excluir_entregados  # NEW
+    )
+    return jsonify({'orders': orders, 'excluir_entregados': excluir_entregados}) 
 
 @orders_logistica_bp.route('/actualizar-nota-item', methods=['POST'])
 def actualizar_nota_item():
