@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Apricor{% endblock %}</title>
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <link rel="icon" href="https://sys.apricor.com.mx/images/favicon.ico">
     <!-- CSS -->
     <link href="{{ url_for('static', filename='themes/sb-admin-2/css/sb-admin-2.min.css') }}" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
@@ -143,27 +143,36 @@
         <div id="content">
             
             <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                <ul class="navbar-nav ml-auto">
-                    <li class="nav-item">
-                        <span class="nav-link text-success">
-                            {% if db_connected %}
-                                ✅ DB conectada
-                            {% else %}
-                                ❌ DB desconectada
-                            {% endif %}
-                        </span>
-                    </li>
-                    <li class="nav-item">
-                        <span id="token-status" class="nav-link text-muted">⏳ Verificando token...</span>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" onclick="mostrarToken()">🔍 Ver token</a>
-                    </li>
-                        <li class="nav-item">
-                        <span id="rayo-status" class="nav-link text-muted">⏳ Rayo…</span>
-                    </li>
-                </ul>
+              <ul class="navbar-nav ml-auto">
+                <li class="nav-item">
+                  <span class="nav-link text-success">
+                    {% if db_connected %}
+                      ✅ DB conectada
+                    {% else %}
+                      ❌ DB desconectada
+                    {% endif %}
+                  </span>
+                </li>
+
+                <li class="nav-item">
+                  <span id="token-status" class="nav-link text-muted">⏳ Verificando token...</span>
+                </li>
+
+                <li class="nav-item">
+                  <a class="nav-link" href="#" onclick="mostrarToken()">🔍 Ver token</a>
+                </li>
+
+                <li class="nav-item">
+                  <span id="rayo-status" class="nav-link text-muted">⏳ Rayo…</span>
+                </li>
+
+                <!-- NUEVO: botón para ver access_token de Rayo -->
+                <li class="nav-item">
+                  <a class="nav-link" href="#" onclick="verRayoToken()">🔑 Ver token Rayo</a>
+                </li>
+              </ul>
             </nav>
+
             
 
             <div class="container-fluid">
@@ -308,6 +317,42 @@
       if (sidebar) sidebar.classList.remove('toggled');
     });
   });
+
+ function verRayoToken() {
+    fetch("{{ url_for('rayo_bp.rayo_token_value') }}")
+      .then(r => r.ok ? r.json() : Promise.resolve({ ok:false, status:r.status }))
+      .then(data => {
+        let token = data && data.access_token;
+
+        // Fallback: intentar extraer del RAW si vino sin normalizar
+        if (!token && data && data.raw) {
+          try {
+            const rawObj = (typeof data.raw === 'string') ? JSON.parse(data.raw) : data.raw;
+            token =
+              rawObj?.access_token || rawObj?.token || rawObj?.accessToken || rawObj?.accesToken ||
+              rawObj?.data?.access_token || rawObj?.data?.token || rawObj?.data?.accessToken || rawObj?.data?.accesToken ||
+              rawObj?.AuthWithAPIkey?.accessToken || rawObj?.AuthWithAPIkey?.accesToken;
+          } catch (e) { /* ignore */ }
+        }
+
+        if (token) {
+          const wantCopy = confirm("Rayo access_token:\n\n" + token + "\n\n¿Copiar al portapapeles?");
+          if (wantCopy && navigator.clipboard) {
+            navigator.clipboard.writeText(token).catch(() => {});
+          }
+        } else {
+          const raw = data && data.raw
+            ? (typeof data.raw === 'string' ? data.raw.slice(0, 500) : JSON.stringify(data.raw).slice(0, 500))
+            : '';
+          alert(
+            "No se pudo obtener access_token de Rayo." +
+            "\nStatus: " + (data && data.status ? data.status : "N/A") +
+            (raw ? "\n\nRAW:\n" + raw : "")
+          );
+        }
+      })
+      .catch(err => alert("Error al consultar /rayo/token:\n" + err));
+  }
 </script>
 
 </body>

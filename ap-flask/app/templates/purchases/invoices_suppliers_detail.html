@@ -112,14 +112,16 @@
   </div>
 </div>
 
+
+  // ===== Modal faltantes (Crear en Rayo): carga + títulos + portada + selección =====
 <script>
-  // ===== Modal faltantes (Crear en Rayo): carga + títulos + portada =====
+  // ===== Modal faltantes (Crear en Rayo): carga + títulos + portada + selección + estado =====
   (function () {
     const nroFc = "{{ nro_fc }}";
     const btn = document.getElementById("btn-abrir-crear-rayo");
     const body = document.getElementById("modalCrearRayoBody");
 
-    // helper local: límite de concurrencia para pedir títulos
+    // --- helper: límite de concurrencia para pedir títulos ---
     function fetchTitlesWithLimit(pairs, limit = 8) {
       let i = 0, active = 0;
       return new Promise(resolve => {
@@ -148,264 +150,369 @@
       });
     }
 
-    // inicializa portadas con fallback .JPG -> .jpg -> texto "—"
-function initCovers(rootEl) {
-  const NO_IMAGE_URL = 'http://159.65.186.41/img/prod_sin_imagen.jpg';
-
-  const imgs = rootEl.querySelectorAll('img[data-ce-cover]');
-  imgs.forEach(img => {
-    const upper = img.getAttribute('data-upper') || '';
-    const lower = img.getAttribute('data-lower') || '';
-
-    // Estado simple para evitar loops
-    img.dataset.state = 'init';
-
-    function handleError() {
-        const st = img.dataset.state;
-
-        if (st === 'init' && lower) {
-          // Falló .JPG => probamos .jpg
+    // --- portadas con fallback .JPG -> .jpg -> placeholder ---
+    function initCovers(rootEl) {
+      const NO_IMAGE_URL = 'https://sys.apricor.com.mx/images/np.jpg';
+      const imgs = rootEl.querySelectorAll('img[data-ce-cover]');
+      imgs.forEach(img => {
+        const upper = img.getAttribute('data-upper') || '';
+        const lower = img.getAttribute('data-lower') || '';
+        img.dataset.state = 'init';
+        function handleError() {
+          const st = img.dataset.state;
+          if (st === 'init' && lower) {
+            img.dataset.state = 'tried-lower';
+            img.src = lower;
+            return;
+          }
+          img.dataset.state = 'placeholder';
+          img.onerror = null;
+          img.src = NO_IMAGE_URL;
+        }
+        img.onerror = handleError;
+        if (upper) {
+          img.src = upper;
+        } else if (lower) {
           img.dataset.state = 'tried-lower';
           img.src = lower;
+        } else {
+          img.dataset.state = 'placeholder';
+          img.onerror = null;
+          img.src = NO_IMAGE_URL;
+        }
+      });
+    }
+
+    // === selección múltiple ===
+    let selected = new Set(); // guarda ids de fila: "r-0", "r-1", ...
+
+    function getModalEl() {
+      return document.getElementById('modalCrearRayo');
+    }
+    function getFooterEl() {
+      return getModalEl().querySelector('.modal-footer');
+    }
+    function ensureCreateButton() {
+      const footer = getFooterEl();
+      if (!footer.querySelector('#btn-rayo-crear')) {
+        const btnCrear = document.createElement('button');
+        btnCrear.type = 'button';
+        btnCrear.className = 'btn btn-success';
+        btnCrear.id = 'btn-rayo-crear';
+        btnCrear.disabled = true;
+        btnCrear.textContent = 'Crear';
+        btnCrear.addEventListener('click', handleCreateClick);
+        footer.appendChild(btnCrear);
+      }
+    }
+
+    function updateMasterAndCounter(container) {
+      const counter = container.querySelector('#sel-counter');
+      const master  = container.querySelector('#chk-select-all');
+      const totalChecks = container.querySelectorAll('tbody input[type="checkbox"].itm').length;
+      const count = selected.size;
+
+      if (counter) counter.textContent = 'Seleccionados: ' + count;
+
+      if (master) {
+        if (count === 0) {
+          master.indeterminate = false; master.checked = false;
+        } else if (count === totalChecks) {
+          master.indeterminate = false; master.checked = true;
+        } else {
+          master.indeterminate = true;
+        }
+      }
+
+      const btnBottom = document.getElementById('btn-rayo-crear');
+      const btnTop    = document.getElementById('btn-rayo-crear-top');
+      if (btnBottom) btnBottom.disabled = (count === 0);
+      if (btnTop)    btnTop.disabled    = (count === 0);
+    }
+
+    function buildCheckboxHeader() {
+      return `
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="custom-control custom-checkbox">
+            <input type="checkbox" class="custom-control-input" id="chk-select-all" checked>
+            <label class="custom-control-label" for="chk-select-all">Seleccionar todos</label>
+          </div>
+          <div class="d-flex align-items-center">
+            <span id="sel-counter" class="text-muted mr-3">Seleccionados: 0</span>
+            <button type="button" class="btn btn-success btn-sm" id="btn-rayo-crear-top">Crear</button>
+          </div>
+        </div>`;
+    }
+
+    function wireCreateButtons() {
+      ['btn-rayo-crear', 'btn-rayo-crear-top'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) {
+          b.onclick = handleCreateClick;
+          b.disabled = (selected.size === 0);
+        }
+      });
+    }
+
+    // columna Estado: helpers
+    function ensureStatusCell(tr) {
+      let cell = tr.querySelector('.col-status');
+      if (!cell) {
+        cell = document.createElement('td');
+        cell.className = 'col-status align-middle';
+        tr.appendChild(cell);
+      }
+      return cell;
+    }
+    function setRowStatus(tr, kind, codeOrMsg='') {
+      const cell = ensureStatusCell(tr);
+      if (kind === 'ok') {
+        cell.innerHTML = '<span class="text-success" title="Creado correctamente">✔</span>';
+      } else if (kind === 'error') {
+        const tip = codeOrMsg ? ` (${String(codeOrMsg)})` : '';
+        cell.innerHTML = `<span class="text-danger" title="Error${tip}">✘${tip ? ' ' + String(codeOrMsg) : ''}</span>`;
+      } else { // neutral/pendiente
+        cell.innerHTML = '<span class="text-muted">…</span>';
+      }
+    }
+
+    function buildRowHtml(it, idx) {
+      const raw = String(it.isbn ?? '').trim();
+      const digits = raw.replace(/\D+/g, '');
+      const prefer = (it.sku_norm && /^\d+$/.test(it.sku_norm)) ? it.sku_norm : digits;
+
+      let coverCell = '<span class="text-muted">—</span>';
+      if (/^\d{10,}$/.test(prefer)) {
+        const sub = prefer.slice(0, 7);
+        const name = prefer.slice(0, -1);
+        const upper = `https://www.celesa.com/imagenes/${sub}/${name}.JPG`;
+        const lower = `https://www.celesa.com/imagenes/${sub}/${name}.jpg`;
+        coverCell = `<img data-ce-cover data-upper="${upper}" data-lower="${lower}" loading="lazy" alt="Portada" style="max-height:64px">`;
+      }
+
+      const rowId = `r-${idx}`;
+      return `
+        <tr id="${rowId}" data-isbn="${raw}" data-code="${prefer}" data-title="">
+          <td style="width:40px;">
+            <div class="custom-control custom-checkbox">
+              <input type="checkbox" class="custom-control-input itm" id="chk-${rowId}" data-row-id="${rowId}" checked>
+              <label class="custom-control-label" for="chk-${rowId}"></label>
+            </div>
+          </td>
+          <td><code>${raw}</code></td>
+          <td class="col-titulo"><span class="text-muted">Buscando…</span></td>
+          <td class="col-cover">${coverCell}</td>
+          <td class="col-status"></td>
+        </tr>`;
+    }
+
+    function wireSelectionHandlers(container) {
+      const master = container.querySelector('#chk-select-all');
+      master.addEventListener('change', () => {
+        selected.clear();
+        const checks = container.querySelectorAll('tbody input[type="checkbox"].itm');
+        checks.forEach(chk => {
+          chk.checked = master.checked;
+          if (master.checked) selected.add(chk.dataset.rowId);
+        });
+        updateMasterAndCounter(container);
+      });
+
+      container.querySelector('tbody').addEventListener('change', (e) => {
+        if (e.target && e.target.matches('input[type="checkbox"].itm')) {
+          const id = e.target.dataset.rowId;
+          if (e.target.checked) selected.add(id); else selected.delete(id);
+          updateMasterAndCounter(container);
+        }
+      });
+    }
+
+    async function handleCreateClick() {
+      const rows = Array.from(body.querySelectorAll('tbody tr'));
+      const chosen = rows.filter(r => selected.has(r.id));
+
+      const items = chosen.map(r => {
+        const sku = (r.dataset.code || '').trim();
+        const titulo = (r.dataset.title || '').trim();
+        const img = r.querySelector('img[data-ce-cover]');
+        const foto = img ? (img.currentSrc || img.src || '').trim() : '';
+        return { sku, titulo: titulo || '', foto };
+      });
+
+      if (!items.length) return;
+
+      // bloquear UI
+      ['btn-rayo-crear','btn-rayo-crear-top'].forEach(id => {
+        const b = document.getElementById(id);
+        if (b) { b.disabled = true; b.textContent = 'Procesando...'; }
+      });
+
+      // poner "pendiente" en estado para los elegidos
+      chosen.forEach(tr => setRowStatus(tr, 'pending'));
+
+      try {
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const resp = await fetch(`/purchases/invoices_suppliers/detail/${encodeURIComponent(nroFc)}/rayo/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(csrf ? { 'X-CSRFToken': csrf } : {})
+          },
+          body: JSON.stringify({ nro_fc: nroFc, items })
+        });
+
+        const clone = resp.clone();
+        let data = null, text = null;
+        try { data = await resp.json(); } catch { text = await clone.text().catch(() => '(sin cuerpo)'); }
+
+        if (!resp.ok || !data?.ok) {
+          console.error('Crear en Rayo - fallo', { status: resp.status, data, text });
+          // marcar todos los elegidos como error con el status HTTP
+          chosen.forEach(tr => setRowStatus(tr, 'error', resp.status));
           return;
         }
 
-        // Falló .jpg o no había lower => placeholder
-        img.dataset.state = 'placeholder';
-        img.onerror = null; // cortamos la cadena de errores
-        img.src = NO_IMAGE_URL;
+        // --- modo 1: respuesta detallada por ítem ---
+        if (Array.isArray(data.results)) {
+          data.results.forEach(r => {
+            const tr = body.querySelector(`tr[data-code="${(r.sku || '').trim()}"]`);
+            if (!tr) return;
+            if (r.status === 'ok' || r.status === 'created' || r.status === true) {
+              setRowStatus(tr, 'ok');
+            } else {
+              setRowStatus(tr, 'error', r.code || r.message || 'ERR');
+            }
+          });
+        } else {
+          // --- modo 2 (stub actual): marcamos todos los seleccionados como OK ---
+          chosen.forEach(tr => setRowStatus(tr, 'ok'));
+        }
+
+      } catch (err) {
+        console.error('Excepción en fetch:', err);
+        chosen.forEach(tr => setRowStatus(tr, 'error', 'NET'));
+      } finally {
+        // restaurar UI
+        ['btn-rayo-crear','btn-rayo-crear-top'].forEach(id => {
+          const b = document.getElementById(id);
+          if (b) { b.disabled = (selected.size === 0); b.textContent = 'Crear'; }
+        });
       }
+    }
 
-      img.onerror = handleError;
-
-      // Disparo inicial: si hay upper lo probamos, si no vamos directo a lower/placeholder
-      if (upper) {
-        img.src = upper;
-      } else if (lower) {
-        img.dataset.state = 'tried-lower';
-        img.src = lower;
-      } else {
-        img.dataset.state = 'placeholder';
-        img.onerror = null;
-        img.src = NO_IMAGE_URL;
-      }
-    });
-  }
-
+    // --- abrir modal / cargar faltantes ---
     if (btn) {
       btn.addEventListener("click", function () {
+        selected.clear();
+        ensureCreateButton();
+
         body.innerHTML = '<p class="text-muted mb-0">Cargando…</p>';
+
         fetch(`/purchases/invoices_suppliers/detail/faltantes/${encodeURIComponent(nroFc)}`)
-          .then(r => r.json())
-          .then(({ total, items }) => {
-            if (!total) {
-              body.innerHTML = `
-                <div class="alert alert-success mb-0">
-                  No hay productos faltantes en Rayo para esta factura.
-                </div>`;
-              return;
+          .then(async (r) => {
+            if (!r.ok) {
+              const raw = await r.text().catch(() => '(sin detalle)');
+              throw new Error(`HTTP ${r.status} al traer faltantes. Respuesta: ${raw}`);
             }
+            const rClone = r.clone();
+            try {
+              return await r.json();
+            } catch (e) {
+              const raw = await rClone.text().catch(() => '(sin detalle)');
+              throw new Error(`No pude parsear JSON de faltantes. Respuesta: ${raw}`);
+            }
+          })
+          .then((payload) => {
+            try {
+              let total = 0;
+              let items = [];
 
-            // Construcción de filas: ISBN/SKU + Título + Portada
-            const rows = items.map((it, idx) => {
-              const raw = String(it.isbn ?? '').trim();
-              const digits = raw.replace(/\D+/g, '');
-              const prefer = (it.sku_norm && /^\d+$/.test(it.sku_norm)) ? it.sku_norm : digits;
-
-              // Portada: subcarpeta = primeros 7 dígitos; nombre = ISBN sin el último dígito
-              let coverCell = '<span class="text-muted">—</span>';
-              if (/^\d{10,}$/.test(prefer)) {
-                const sub = prefer.slice(0, 7);
-                const name = prefer.slice(0, -1);
-                const upper = `https://www.celesa.com/imagenes/${sub}/${name}.JPG`;
-                const lower = `https://www.celesa.com/imagenes/${sub}/${name}.jpg`;
-                coverCell = `<img data-ce-cover data-upper="${upper}"  data-lower="${lower}"  loading="lazy" alt="Portada" style="max-height:64px">`;
+              if (Array.isArray(payload)) {
+                items = payload;
+                total = items.length;
+              } else if (payload && typeof payload === 'object') {
+                items = payload.items || payload.data || [];
+                total = Number(payload.total ?? payload.count ?? items.length) || 0;
               }
 
-              return `
-                <tr id="r-${idx}" data-isbn="${raw}" data-code="${prefer}" data-title="">
-                  <td><code>${raw}</code></td>
-                  <td class="col-titulo"><span class="text-muted">Buscando…</span></td>
-                  <td class="col-cover">${coverCell}</td>
-                </tr>`;
-            }).join("");
+              if (!Array.isArray(items)) items = [];
+              if (!total) total = items.length;
 
-            body.innerHTML = `
-              <div class="d-flex justify-content-between align-items-center mb-2">
-                <div><strong>Faltantes (agrupados por SKU):</strong> ${total}</div>
-              </div>
-              <div class="table-responsive">
-                <table class="table table-sm table-striped mb-0">
-                  <thead>
-                    <tr>
-                      <th>ISBN/SKU</th>
-                      <th>Título</th>
-                      <th>Portada</th>
-                    </tr>
-                  </thead>
-                  <tbody>${rows}</tbody>
-                </table>
-              </div>`;
+              if (!total || items.length === 0) {
+                body.innerHTML = `
+                  <div class="alert alert-success mb-0">
+                    No hay productos faltantes en Rayo para esta factura.
+                  </div>`;
+                const btnCrear = document.getElementById('btn-rayo-crear');
+                if (btnCrear) btnCrear.disabled = true;
+                return;
+              }
 
-            // Completar títulos con límite de concurrencia
-            const tbody = body.querySelector('tbody');
-            const pairs = Array.from(tbody.querySelectorAll('tr[data-code]')).map((tr) => {
-              const cell = tr.querySelector('.col-titulo');
-              const code = tr.getAttribute('data-code') || '';
-              return [cell, code, tr];
-            });
-            fetchTitlesWithLimit(pairs, 8);
+              const rows = items.map((it, idx) => buildRowHtml(it, idx)).join("");
 
-            // Inicializar portadas (JPG -> jpg -> “—”)
-            initCovers(body);
+              body.innerHTML = `
+                ${buildCheckboxHeader()}
+                <div class="table-responsive">
+                  <table class="table table-sm table-striped mb-0">
+                    <thead>
+                      <tr>
+                        <th style="width:40px;"></th>
+                        <th>ISBN/SKU</th>
+                        <th>Título</th>
+                        <th>Portada</th>
+                        <th>Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                  </table>
+                </div>`;
+
+              // wire selección
+              wireSelectionHandlers(body);
+
+              // seleccionar todos por defecto
+              body.querySelectorAll('tbody input[type="checkbox"].itm').forEach(chk => {
+                chk.checked = true;
+                selected.add(chk.dataset.rowId);
+              });
+              updateMasterAndCounter(body);
+
+              // conectar ambos botones "Crear"
+              wireCreateButtons();
+
+              // completar títulos con límite de concurrencia
+              const tbody = body.querySelector('tbody');
+              const pairs = Array.from(tbody.querySelectorAll('tr[data-code]')).map((tr) => {
+                const cell = tr.querySelector('.col-titulo');
+                const code = tr.getAttribute('data-code') || '';
+                return [cell, code, tr];
+              });
+              fetchTitlesWithLimit(pairs, 8).finally(() => {
+                updateMasterAndCounter(body);
+              });
+
+              // inicializar portadas
+              initCovers(body);
+            } catch (e) {
+              console.error('Error renderizando items del modal:', e);
+              body.innerHTML = `<div class="alert alert-danger mb-0">Error al renderizar los ítems.</div>`;
+              const btnCrear = document.getElementById('btn-rayo-crear');
+              if (btnCrear) btnCrear.disabled = true;
+            }
           })
-          .catch(() => {
+          .catch((err) => {
+            console.error('Fallo al cargar faltantes:', err);
             body.innerHTML = `<div class="alert alert-danger mb-0">Error al cargar los faltantes.</div>`;
+            const btnCrear = document.getElementById('btn-rayo-crear');
+            if (btnCrear) btnCrear.disabled = true;
           });
       });
     }
   })();
-
-  // ===== Util: mostrar modal compatible (BS4 y BS5) =====
-  function showModalOrdenes() {
-    const el = document.getElementById('modalOrdenes');
-
-    // Bootstrap 5
-    if (window.bootstrap && bootstrap.Modal) {
-      let modal;
-      if (typeof bootstrap.Modal.getOrCreateInstance === 'function') {
-        modal = bootstrap.Modal.getOrCreateInstance(el);
-      } else if (typeof bootstrap.Modal.getInstance === 'function') {
-        modal = bootstrap.Modal.getInstance(el) || new bootstrap.Modal(el);
-      } else {
-        modal = new bootstrap.Modal(el);
-      }
-      modal.show();
-      return;
-    }
-
-    // Bootstrap 4 (jQuery)
-    if (window.jQuery && $('#modalOrdenes').modal) {
-      $('#modalOrdenes').modal('show');
-      return;
-    }
-
-    // Fallback (sin Bootstrap)
-    el.classList.add('show');
-    el.style.display = 'block';
-    el.removeAttribute('aria-hidden');
-    document.body.classList.add('modal-open');
-  }
-
-  // ===== Modal vincular orden (sin cambios) =====
-  function abrirModal(itemId, isbn) {
-    const cont = document.getElementById("modalContenido");
-    if (cont) cont.innerHTML = '<p class="text-muted mb-0">Cargando…</p>';
-
-    fetch("/purchases/invoices_suppliers/detail/buscar_ordenes_por_isbn", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isbn })
-    })
-    .then(res => res.json())
-    .then(data => {
-      let html = '<form method="post" action="/purchases/invoices_suppliers/detail/vincular_orden">';
-      html += '<input type="hidden" name="item_id" value="' + itemId + '">';
-
-      if (data.length === 0) {
-        html += '<p>No se encontraron órdenes con este ISBN.</p>';
-      } else {
-        html += '<div class="list-group">';
-        data.forEach(orden => {
-          const disponibles = orden.quantity - orden.vinculadas;
-          const deshabilitado = disponibles <= 0;
-
-          html += '<label class="list-group-item d-flex justify-content-between align-items-center' +
-                  (deshabilitado ? ' text-muted' : '') + '">';
-
-          if (!deshabilitado) {
-            html += '<input class="form-check-input me-2" type="radio" name="order_id" value="' + orden.order_id + '" required>';
-          }
-
-          html += '<div>';
-          html += '<strong>Orden #' + orden.order_id + '</strong>';
-          html += ' - $' + orden.total + ' - ' + orden.fecha;
-          html += '<br><span class="badge badge-info">' + orden.estado + '</span> ';
-          html += '<span class="badge badge-secondary">SKU ' + orden.vinculadas + ' / ' + orden.quantity + '</span>';
-          if (deshabilitado) {
-            html += ' <span class="badge badge-danger">Sin unidades disponibles</span>';
-          }
-          html += '</div>';
-
-          html += '</label>';
-        });
-        html += '</div>';
-        html += '<button type="submit" class="btn btn-primary mt-3">Vincular</button>';
-      }
-
-      html += '</form>';
-
-      // Enviar a revisión
-      html += '<div class="text-center mt-3">';
-      html += '<form method="post" action="/purchases/invoices_suppliers/detail/vincular_orden">';
-      html += '<input type="hidden" name="item_id" value="' + itemId + '">';
-      html += '<input type="hidden" name="order_id" value="9999999999">';
-      html += '<button type="submit" class="btn btn-warning" onclick="return confirm(\'¿Estás seguro de enviar este ítem a revisión?\')">Enviar a revisión</button>';
-      html += '</form>';
-      html += '</div>';
-
-      // Agregar a stock
-      html += '<div class="text-center mt-2">';
-      html += '<form method="post" action="/purchases/invoices_suppliers/detail/vincular_orden">';
-      html += '<input type="hidden" name="item_id" value="' + itemId + '">';
-      html += '<input type="hidden" name="order_id" value="8888888888">';
-      html += '<button type="submit" class="btn btn-success" onclick="return confirm(\'¿Agregar este ítem directamente al stock?\')">Agregar a stock</button>';
-      html += '</form>';
-      html += '</div>';
-
-      document.getElementById("modalContenido").innerHTML = html;
-      showModalOrdenes();
-    })
-    .catch(() => {
-      const cont = document.getElementById("modalContenido");
-      if (cont) cont.innerHTML = "<p>Error al buscar órdenes.</p>";
-      showModalOrdenes();
-    });
-  }
-
-  document.querySelectorAll('.vincular-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
-      const itemId = this.getAttribute('data-item-id');
-      const isbn = this.getAttribute('data-isbn');
-      abrirModal(itemId, isbn);
-    });
-  });
-
-  // Accesibilidad: mover foco fuera del modal cuando se oculta (BS4 y BS5)
-  ['modalCrearRayo','modalOrdenes'].forEach(function(id) {
-    var el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('hidden.bs.modal', function() {
-      if (document.activeElement && el.contains(document.activeElement)) {
-        document.activeElement.blur();
-      }
-      var opener = document.getElementById('btn-abrir-crear-rayo');
-      if (opener) { try { opener.focus(); } catch(e){} }
-    });
-    el.addEventListener('hide.bs.modal', function() {
-      if (document.activeElement && el.contains(document.activeElement)) {
-        document.activeElement.blur();
-      }
-    });
-  });
-
-  // Compat: si usás Bootstrap 5, usa data-bs-* en los botones de cerrar
-  document.querySelectorAll('[data-dismiss="modal"]').forEach(function(btn){
-    if (window.bootstrap && window.bootstrap.Modal) {
-      btn.setAttribute('data-bs-dismiss', 'modal');
-    }
-  });
 </script>
+
+
+
 
 
 {% endblock %}
