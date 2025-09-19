@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Preguntas{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <h1 class="h3 mb-4 text-gray-800">Preguntas</h1>
+
+  <!-- Pestañas -->
+  <ul class="nav nav-tabs" id="questionsTab" role="tablist">
+    <li class="nav-item">
+      <a class="nav-link active" id="pending-tab" data-toggle="tab" href="#pending" role="tab"
+         aria-controls="pending" aria-selected="true">📩 Pendientes</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="answered-tab" data-toggle="tab" href="#answered" role="tab"
+         aria-controls="answered" aria-selected="false">✅ Respondidas</a>
+    </li>
+  </ul>
+
+  <!-- Contenido de pestañas -->
+  <div class="tab-content mt-3" id="questionsTabContent">
+    <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+      {% include "communication/questions/to_answer.html" %}
+    </div>
+    <div class="tab-pane fade" id="answered" role="tabpanel" aria-labelledby="answered-tab">
+      {% include "communication/questions/answered.html" %}
+    </div>
+  </div>
+</div>
+{% endblock %}

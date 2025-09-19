@@ -90,6 +90,24 @@
                 </div>
             </div>
         </li> 
+
+        <!-- Comunicación como acordeón -->
+        <li class="nav-item">
+          <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseCommunication"
+              aria-expanded="true" aria-controls="collapseCommunication">
+              <i class="fas fa-fw fa-comments"></i>
+              <span>Comunicación</span>
+          </a>
+          <div id="collapseCommunication" class="collapse {% if tipo in ['questions'] %}show{% endif %}"
+              aria-labelledby="headingCommunication" data-parent="#accordionSidebar">
+              <div class="bg-white py-2 collapse-inner rounded">
+                  <h6 class="collapse-header">Gestión:</h6>
+                  <a class="collapse-item" href="{{ url_for('questions_index_bp.index') }}">❓ Preguntas</a>
+              </div>
+          </div>
+        </li>
+
+
         <li class="nav-item">
             <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseCompras"
                 aria-expanded="true" aria-controls="collapseCompras">
