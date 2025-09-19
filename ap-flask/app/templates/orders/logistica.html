@@ -45,11 +45,18 @@
       <input type="text" class="form-control" id="isbn" name="isbn" placeholder="ISBN" value="{{ filtro_isbn or '' }}">
     </div>
 
-    <!-- Excluir entregados (tildado por defecto) -->
+    <!-- Excluir entregados -->
     <div class="form-check form-check-inline mb-2 mr-2 align-self-center">
       <input type="hidden" id="excluir_entregados_val" name="excluir_entregados" value="{{ '1' if filtro_excluir_entregados else '0' }}">
       <input class="form-check-input" type="checkbox" id="excluir_entregados_chk" {% if filtro_excluir_entregados %}checked{% endif %}>
       <label class="form-check-label" for="excluir_entregados_chk">Excluir entregados</label>
+    </div>
+
+    <!-- Excluir cancelados (NEW) -->
+    <div class="form-check form-check-inline mb-2 mr-2 align-self-center">
+      <input type="hidden" id="excluir_cancelados_val" name="excluir_cancelados" value="{{ '1' if filtro_excluir_cancelados else '0' }}">
+      <input class="form-check-input" type="checkbox" id="excluir_cancelados_chk" {% if filtro_excluir_cancelados %}checked{% endif %}>
+      <label class="form-check-label" for="excluir_cancelados_chk">Excluir cancelados</label>
     </div>
 
     <button type="submit" class="btn btn-outline-info mb-2">🔍 Buscar</button>
@@ -131,16 +138,19 @@
   </table>
 </div>
 
-<!-- Sincroniza el checkbox con el hidden para que siempre se envíe 1/0 -->
+<!-- Sincroniza ambos checkboxes con sus hidden para enviar 1/0 -->
 <script>
   (function () {
-    const chk = document.getElementById('excluir_entregados_chk');
-    const hidden = document.getElementById('excluir_entregados_val');
-    if (chk && hidden) {
+    function syncPair(chkId, hiddenId) {
+      const chk = document.getElementById(chkId);
+      const hidden = document.getElementById(hiddenId);
+      if (!chk || !hidden) return;
       const sync = () => hidden.value = chk.checked ? '1' : '0';
       chk.addEventListener('change', sync);
-      sync(); // inicial
+      sync();
     }
+    syncPair('excluir_entregados_chk', 'excluir_entregados_val');
+    syncPair('excluir_cancelados_chk', 'excluir_cancelados_val');
   })();
 </script>
 

@@ -4,7 +4,7 @@ from app.db import get_conn
 orders_logistica_bp = Blueprint('orders_logistica', __name__, url_prefix='/orders/logistica')
 
 def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None, 
-                  venc_desde=None, venc_hasta=None, nota_like=None, isbn=None, excluir_entregados=True):
+                  venc_desde=None, venc_hasta=None, nota_like=None, isbn=None, excluir_entregados=True, excluir_cancelados=True):
     """
     Obtiene órdenes con filtros de ID, rango de creación y rango de vencimiento (inclusive),
     agrupa por pack_id (o order_id si pack_id es null) y normaliza datos.
@@ -42,6 +42,8 @@ def _fetch_orders(id_param=None, fecha_desde=None, fecha_hasta=None,
         params.append(isbn)
     if excluir_entregados:
         filters.append("NOT (o.status = 'paid' AND s.status = 'delivered')")   
+    if excluir_cancelados:
+        filters.append("o.status <> 'cancelled'")        
     # Base de consulta incluyendo JOIN con shipments y order_items
     base_query = (
         "SELECT o.order_id, "
@@ -177,10 +179,12 @@ def index_logistica():
 
     # NEW: checkbox excluir_entregados (1 por defecto = excluir)
     excluir_entregados = request.args.get('excluir_entregados', '1') == '1'
-
+    excluir_cancelados = request.args.get('excluir_cancelados', '1') == '1' 
+    
     orders = _fetch_orders(
         id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like, isbn,
-        excluir_entregados=excluir_entregados  # NEW
+        excluir_entregados=excluir_entregados,
+        excluir_cancelados=excluir_cancelados   # NEW
     )
 
     return render_template(
@@ -194,7 +198,8 @@ def index_logistica():
         filtro_venc_hasta=venc_hasta,
         nota_like=nota_like,
         filtro_isbn=isbn,
-        filtro_excluir_entregados=excluir_entregados  # NEW (para el checkbox)
+        filtro_excluir_entregados=excluir_entregados,
+        filtro_excluir_cancelados=excluir_cancelados  # NEW (para el checkbox)
     )
 
 @orders_logistica_bp.route('/search')
@@ -209,12 +214,14 @@ def search_logistica():
 
     # NEW: default = excluir
     excluir_entregados = request.args.get('excluir_entregados', '1') == '1'
+    excluir_cancelados = request.args.get('excluir_cancelados', '1') == '1'
 
     orders = _fetch_orders(
         id_param, fecha_desde, fecha_hasta, venc_desde, venc_hasta, nota_like, isbn,
-        excluir_entregados=excluir_entregados  # NEW
+        excluir_entregados=excluir_entregados,
+        excluir_cancelados=excluir_cancelados 
     )
-    return jsonify({'orders': orders, 'excluir_entregados': excluir_entregados}) 
+    return jsonify({'orders': orders, 'excluir_entregados': excluir_entregados, 'excluir_cancelados': excluir_cancelados}) 
 
 @orders_logistica_bp.route('/actualizar-nota-item', methods=['POST'])
 def actualizar_nota_item():
