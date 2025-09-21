@@ -1,8 +1,19 @@
 <div>
-  <p>Aquí se listarán todas las preguntas respondidas.</p>
-  <!-- Ejemplo estático -->
-  <ul>
-    <li>¿Tienen envío gratis? → Sí, en compras superiores a $499</li>
-    <li>¿El libro viene sellado? → Sí, todos los libros son nuevos y vienen sellados</li>
-  </ul>
+  {% if answered_questions %}
+    {% for q in answered_questions %}
+      <div class="card mb-3">
+        <div class="card-body">
+          <p><strong>❓ {{ q.text }}</strong><br>
+             <small class="text-muted">Usuario #{{ q.from_id }} · {{ q.date_created }}</small></p>
+          <div class="alert alert-light border">
+            <strong>Respuesta:</strong><br>
+            {{ q.answer }}
+          </div>
+          <small class="text-muted">Respondida el {{ q.updated_at }}</small>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="text-muted">✅ No hay preguntas respondidas</p>
+  {% endif %}
 </div>

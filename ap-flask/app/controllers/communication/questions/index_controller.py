@@ -7,4 +7,6 @@ questions_index_bp = Blueprint(
 
 @questions_index_bp.route("/", methods=["GET"])
 def index():
-    return render_template("communication/questions/index.html")
+    # En el futuro acá cargamos estadísticas de la DB
+    stats = {}
+    return render_template("communication/questions/index.html", stats=stats)

@@ -8,8 +8,12 @@
   <!-- Pestañas -->
   <ul class="nav nav-tabs" id="questionsTab" role="tablist">
     <li class="nav-item">
-      <a class="nav-link active" id="pending-tab" data-toggle="tab" href="#pending" role="tab"
-         aria-controls="pending" aria-selected="true">📩 Pendientes</a>
+      <a class="nav-link active" id="stats-tab" data-toggle="tab" href="#stats" role="tab"
+         aria-controls="stats" aria-selected="true">📊 Estadísticas</a>
+    </li>
+    <li class="nav-item">
+      <a class="nav-link" id="pending-tab" data-toggle="tab" href="#pending" role="tab"
+         aria-controls="pending" aria-selected="false">📩 Pendientes</a>
     </li>
     <li class="nav-item">
       <a class="nav-link" id="answered-tab" data-toggle="tab" href="#answered" role="tab"
@@ -19,12 +23,19 @@
 
   <!-- Contenido de pestañas -->
   <div class="tab-content mt-3" id="questionsTabContent">
-    <div class="tab-pane fade show active" id="pending" role="tabpanel" aria-labelledby="pending-tab">
-      {% include "communication/questions/to_answer.html" %}
+    <div class="tab-pane fade show active p-3" id="stats" role="tabpanel" aria-labelledby="stats-tab">
+      <p class="text-muted">📊 Aquí se mostrarán las estadísticas de las preguntas.</p>
     </div>
-    <div class="tab-pane fade" id="answered" role="tabpanel" aria-labelledby="answered-tab">
-      {% include "communication/questions/answered.html" %}
+    <div class="tab-pane fade p-3" id="pending" role="tabpanel" aria-labelledby="pending-tab">
+      <div class="spinner-border text-primary" role="status"></div>
+    </div>
+    <div class="tab-pane fade p-3" id="answered" role="tabpanel" aria-labelledby="answered-tab">
+      <div class="spinner-border text-primary" role="status"></div>
     </div>
   </div>
 </div>
+{% endblock %}   {# 👈 cierre de block content #}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/communication/questions/index.js') }}"></script>
 {% endblock %}
