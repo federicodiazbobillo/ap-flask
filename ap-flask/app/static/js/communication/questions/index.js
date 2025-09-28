@@ -13,7 +13,7 @@ $(function() {
   }
 
   // Precargar "Pendientes" al inicio
-  loadTabContent("#pending", "/communication/questions/to_answer/");
+  loadTabContent("#pending", "/communication/questions/unanswered/");
 
   // Precargar "Respondidas" al inicio (si no querés, comentá esta línea)
   loadTabContent("#answered", "/communication/questions/answered/");
@@ -22,7 +22,7 @@ $(function() {
   $('a[data-toggle="tab"]').on("shown.bs.tab", function(e) {
     const target = $(e.target).attr("href"); // #stats, #pending, #answered
     if (target === "#pending") {
-      loadTabContent("#pending", "/communication/questions/to_answer/");
+      loadTabContent("#pending", "/communication/questions/unanswered/");
     } else if (target === "#answered") {
       loadTabContent("#answered", "/communication/questions/answered/");
     }

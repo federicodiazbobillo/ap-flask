@@ -1,0 +1,118 @@
+<p class="mb-3">
+  Aquí se listarán todas las preguntas pendientes de responder.
+  <span class="text-muted">Mostrando {{ unanswered_questions|length }} pendientes.</span>
+</p>
+
+{% for q in unanswered_questions %}
+<div class="card mb-3" data-qid="{{ q.id }}">
+  <div class="card-body">
+    <p class="mb-2">
+      <strong>
+        <a href="{{ q.item_permalink }}" target="_blank">{{ q.item_title }}</a>
+      </strong>
+      {% if q.item_status %}
+        <span class="badge badge-secondary ml-2">{{ q.item_status }}</span>
+      {% endif %}
+      {% if q.manufacturing_time %}
+        <span class="badge badge-info ml-2">{{ q.manufacturing_time }}</span>
+      {% endif %}
+      {% if q.isbn %}
+        <span class="badge badge-light ml-2">ISBN: {{ q.isbn }}</span>
+      {% endif %}
+    </p>
+
+    {% if q.item_thumbnail %}
+      <img src="{{ q.item_thumbnail }}" alt="thumb"
+           class="img-thumbnail mb-2" style="max-width:120px;">
+    {% endif %}
+
+    <p>
+      <strong>{{ q.text }}</strong><br>
+      <small class="text-muted">Usuario #{{ q.from_id }} · {{ q.date_created }}</small>
+    </p>
+
+    <textarea class="form-control form-control-sm"
+              rows="1"
+              style="resize: vertical; min-height: 2.2em;"
+              placeholder="Escribe tu respuesta..."
+              data-answer-input="{{ q.id }}"></textarea>
+    <div class="mt-2">
+      <button type="button"
+              class="btn btn-success btn-sm"
+              data-action="send-answer"
+              data-id="{{ q.id }}">
+        Enviar
+      </button>
+      <button type="button"
+              class="btn btn-danger btn-sm"
+              data-action="delete-question"
+              data-id="{{ q.id }}">
+        Eliminar
+      </button>
+    </div>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-info">No hay preguntas pendientes por ahora 🎉</div>
+{% endfor %}
+
+<script>
+(function () {
+  if (window.questionHandlersBound) return;
+  window.questionHandlersBound = true;
+
+  document.addEventListener("click", function (e) {
+    // Eliminar pregunta
+    if (e.target.matches("[data-action='delete-question']")) {
+      e.preventDefault();
+      const qid = e.target.getAttribute("data-id");
+      if (confirm("¿Seguro que querés eliminar esta pregunta?")) {
+        fetch(`/communication/questions/unanswered/delete/${qid}`, { method: "POST" })
+        .then(r => r.json())
+        .then(data => {
+          const card = e.target.closest(".card");
+          if (data.success) {
+            if (card) {
+              card.innerHTML = '<div class="card-body text-danger">✅ Pregunta eliminada. Esperando confirmación de Mercado Libre...</div>';
+              setTimeout(() => card.remove(), 2000);
+            }
+          } else {
+            alert("Error al eliminar: " + (data.error || "No se pudo eliminar"));
+          }
+        })
+        .catch(err => alert("Error de red: " + err));
+      }
+    }
+
+    // Enviar respuesta
+    if (e.target.matches("[data-action='send-answer']")) {
+      e.preventDefault();
+      const qid = e.target.getAttribute("data-id");
+      const textarea = document.querySelector(`[data-answer-input='${qid}']`);
+      const text = textarea.value.trim();
+      if (!text) {
+        alert("Escribe una respuesta antes de enviar.");
+        return;
+      }
+      fetch(`/communication/questions/unanswered/answer/${qid}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text })
+      })
+      .then(r => r.json())
+      .then(data => {
+        const card = e.target.closest(".card");
+        if (data.success) {
+          if (card) {
+            card.innerHTML = '<div class="card-body text-success">✅ Respuesta enviada. Esperando confirmación de Mercado Libre...</div>';
+            setTimeout(() => card.remove(), 2000);
+          }
+        } else {
+          alert("Error al responder: " + (data.error || "No se pudo enviar"));
+        }
+      })
+      .catch(err => alert("Error de red: " + err));
+    }
+  });
+})();
+</script>
