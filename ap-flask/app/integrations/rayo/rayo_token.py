@@ -1,5 +1,10 @@
 # app/integrations/rayo/rayo_token.py
 # -*- coding: utf-8 -*-
+# 🚫 Controlador Rayo temporalmente inhabilitado
+#
+# Todo el código original queda comentado abajo para referencia.
+
+"""
 import os
 import requests
 from flask import Blueprint, jsonify, current_app
@@ -17,7 +22,6 @@ def rayo_ping():
         current_app.logger.warning("[RAYO] Faltan env: URL_RAYO o APIRAYO")
         return jsonify(ok=False, error="Faltan env: URL_RAYO o APIRAYO", code=500), 200
 
-    # En tu .env poné URL_RAYO=https://cerebro.techrayo.com/api/rest
     endpoint = url_rayo.rstrip("/") + "/auth"
     headers = {"x-api-key": api_rayo}
 
@@ -48,12 +52,10 @@ def rayo_token_value():
     def _extract_token(obj):
         if not isinstance(obj, dict):
             return None
-        # claves directas
         for k in ("access_token", "token", "accessToken", "accesToken"):
             v = obj.get(k)
             if isinstance(v, str) and v.strip():
                 return v.strip()
-        # anidados comunes
         for subkey in ("data", "AuthWithAPIkey", "AuthWithApiKey", "auth", "result"):
             sub = obj.get(subkey)
             if isinstance(sub, dict):
@@ -82,3 +84,17 @@ def rayo_token_value():
     except requests.RequestException as e:
         current_app.logger.exception(f"[RAYO] token_value RequestException: {e}")
         return jsonify(ok=False, error=f"request_error: {e}", code=502), 200
+"""
+
+# 🔹 Implementación temporal mínima
+from flask import Blueprint, jsonify
+
+bp = Blueprint("rayo_bp", __name__, url_prefix="/rayo")
+
+@bp.route("/ping", methods=["GET"], endpoint="rayo_ping")
+def rayo_ping():
+    return jsonify(ok=False, error="Módulo Rayo deshabilitado temporalmente"), 503
+
+@bp.route("/token", methods=["GET"], endpoint="rayo_token_value")
+def rayo_token_value():
+    return jsonify(ok=False, error="Módulo Rayo deshabilitado temporalmente"), 503
