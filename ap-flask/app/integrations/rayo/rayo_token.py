@@ -86,6 +86,14 @@ def rayo_token_value():
         return jsonify(ok=False, error=f"request_error: {e}", code=502), 200
 """
 
+# app/integrations/rayo/rayo_token.py
+# -*- coding: utf-8 -*-
+# 🚫 Controlador Rayo temporalmente inhabilitado
+
+# 🔹 Stub para evitar errores de import en otros módulos
+def _cfg():
+    return None, None
+
 # 🔹 Implementación temporal mínima
 from flask import Blueprint, jsonify
 
@@ -93,8 +101,13 @@ bp = Blueprint("rayo_bp", __name__, url_prefix="/rayo")
 
 @bp.route("/ping", methods=["GET"], endpoint="rayo_ping")
 def rayo_ping():
-    return jsonify(ok=False, error="Módulo Rayo deshabilitado temporalmente"), 503
+    return jsonify(ok=False, error="Módulo Rayo deshabilitado temporalmente", status=503), 200
 
 @bp.route("/token", methods=["GET"], endpoint="rayo_token_value")
 def rayo_token_value():
-    return jsonify(ok=False, error="Módulo Rayo deshabilitado temporalmente"), 503
+    return jsonify(
+        ok=False,
+        status=503,
+        access_token=None,
+        raw={"error": "Módulo Rayo deshabilitado temporalmente"}
+    ), 200
