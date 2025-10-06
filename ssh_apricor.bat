@@ -1,3 +1,0 @@
-@echo off
-ssh -o ServerAliveInterval=60 -o ServerAliveCountMax=5 root@sys.apricor.com.mx
-pause
