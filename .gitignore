@@ -39,3 +39,6 @@ Thumbs.db
 
 # Archivos generados por PyInstaller
 *.spec
+
+# Script personal de inicio local
+start_apflask_fede.bat
